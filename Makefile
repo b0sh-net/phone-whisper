@@ -1,5 +1,6 @@
 SHELL := /bin/bash
 
+-include .env
 PHONE_HOST ?= pixel-5
 SSH_PORT   ?= 8022
 APK        := app/build/outputs/apk/debug/app-debug.apk
