@@ -4,15 +4,15 @@ Goal: ship a credible first MVP today, get feedback, and avoid spending time on 
 
 ## Top priority blocker
 
-- [ ] **App icon**
-  - Add a proper launcher icon
-  - Verify it looks good on Android home screen and app drawer
-  - Verify `AndroidManifest.xml` points to the correct launcher asset
+- [x] **App icon**
+  - [x] Add a proper launcher icon
+  - [x] Verify it looks good on Android home screen and app drawer
+  - [x] Verify `AndroidManifest.xml` points to the correct launcher asset
 
 ## Must do before launch
 
 ### Product
-- [ ] Build and install the latest APK
+- [x] Build and install the latest APK
 - [ ] Sanity-check the main loop on device:
   - [ ] tap overlay
   - [ ] record
@@ -66,7 +66,7 @@ Goal: ship a credible first MVP today, get feedback, and avoid spending time on 
 ## Launch sequence
 
 1. [ ] Final APK built
-2. [ ] App icon done
+2. [x] App icon done
 3. [ ] README/docs synced
 4. [ ] GitHub release created
 5. [ ] Repo public and links checked
