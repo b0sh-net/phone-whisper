@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
 import android.media.AudioFormat
@@ -18,7 +19,9 @@ import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import java.io.ByteArrayOutputStream
@@ -35,18 +38,22 @@ class WhisperAccessibilityService : AccessibilityService() {
         private const val PAD_DP = 10
         private const val MARGIN_DP = 8
         private const val TAP_THRESHOLD_DP = 10
-        private const val FEEDBACK_OFFSET_DP = 56
+        private const val RING_DP = 56
+        private const val FEEDBACK_OFFSET_DP = 64
 
         private const val COLOR_IDLE = 0xDD1C1C1E.toInt()
         private const val COLOR_RECORDING = 0xDDEF4444.toInt()
         private const val COLOR_BUSY = 0xDD6B6B6B.toInt()
         private const val COLOR_FEEDBACK_BG = 0xEE1C1C1E.toInt()
+        private const val COLOR_RING = 0xFFE8EAED.toInt()
     }
 
     private enum class State { IDLE, RECORDING, TRANSCRIBING }
 
     private var state = State.IDLE
+    private var overlayView: FrameLayout? = null
     private var button: ImageView? = null
+    private var spinner: ProgressBar? = null
     private var feedbackView: TextView? = null
     private var layoutParams: WindowManager.LayoutParams? = null
     private var feedbackLayoutParams: WindowManager.LayoutParams? = null
@@ -108,9 +115,16 @@ class WhisperAccessibilityService : AccessibilityService() {
 
     private fun showOverlay() {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        val size = (BTN_DP * dp).toInt()
+        val buttonSize = (BTN_DP * dp).toInt()
+        val ringSize = (RING_DP * dp).toInt()
         val pad = (PAD_DP * dp).toInt()
         val margin = (MARGIN_DP * dp).toInt()
+
+        val ring = ProgressBar(this).apply {
+            isIndeterminate = true
+            indeterminateTintList = ColorStateList.valueOf(COLOR_RING)
+            visibility = View.GONE
+        }
 
         val img = ImageView(this).apply {
             setImageResource(R.drawable.ic_mic)
@@ -119,21 +133,26 @@ class WhisperAccessibilityService : AccessibilityService() {
             background = circle(COLOR_IDLE)
         }
 
+        val overlay = FrameLayout(this).apply {
+            addView(ring, FrameLayout.LayoutParams(ringSize, ringSize, Gravity.CENTER))
+            addView(img, FrameLayout.LayoutParams(buttonSize, buttonSize, Gravity.CENTER))
+        }
+
         val params = WindowManager.LayoutParams(
-            size, size,
+            ringSize, ringSize,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = screenW - size - margin
-            y = screenH / 2 - size / 2
+            x = screenW - ringSize - margin
+            y = screenH / 2 - ringSize / 2
         }
 
         var startX = 0; var startY = 0
         var touchX = 0f; var touchY = 0f
 
-        img.setOnTouchListener { v, ev ->
+        overlay.setOnTouchListener { v, ev ->
             when (ev.action) {
                 MotionEvent.ACTION_DOWN -> {
                     startX = params.x; startY = params.y
@@ -144,6 +163,10 @@ class WhisperAccessibilityService : AccessibilityService() {
                     params.x = startX + (ev.rawX - touchX).toInt()
                     params.y = startY + (ev.rawY - touchY).toInt()
                     wm.updateViewLayout(v, params)
+                    feedbackLayoutParams?.let {
+                        positionFeedback(it, params)
+                        wm.updateViewLayout(feedbackView, it)
+                    }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
@@ -151,9 +174,13 @@ class WhisperAccessibilityService : AccessibilityService() {
                     if (moved < TAP_THRESHOLD_DP * dp) {
                         onTap()
                     } else {
-                        params.x = if (params.x + size / 2 > screenW / 2)
-                            screenW - size - margin else margin
+                        params.x = if (params.x + ringSize / 2 > screenW / 2)
+                            screenW - ringSize - margin else margin
                         wm.updateViewLayout(v, params)
+                        feedbackLayoutParams?.let {
+                            positionFeedback(it, params)
+                            wm.updateViewLayout(feedbackView, it)
+                        }
                     }
                     true
                 }
@@ -181,9 +208,11 @@ class WhisperAccessibilityService : AccessibilityService() {
         }
         positionFeedback(feedbackParams, params)
 
-        wm.addView(img, params)
+        wm.addView(overlay, params)
         wm.addView(feedback, feedbackParams)
+        overlayView = overlay
         button = img
+        spinner = ring
         feedbackView = feedback
         layoutParams = params
         feedbackLayoutParams = feedbackParams
@@ -191,14 +220,16 @@ class WhisperAccessibilityService : AccessibilityService() {
 
     private fun removeOverlay() {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        button?.let {
+        overlayView?.let {
             wm.removeView(it)
-            button = null
+            overlayView = null
         }
         feedbackView?.let {
             wm.removeView(it)
             feedbackView = null
         }
+        button = null
+        spinner = null
         layoutParams = null
         feedbackLayoutParams = null
     }
@@ -217,6 +248,12 @@ class WhisperAccessibilityService : AccessibilityService() {
         handler.post { button?.background = circle(color) }
     }
 
+    private fun setBusy(visible: Boolean) {
+        handler.post {
+            spinner?.visibility = if (visible) View.VISIBLE else View.GONE
+        }
+    }
+
     private fun positionFeedback(
         feedbackParams: WindowManager.LayoutParams,
         bubbleParams: WindowManager.LayoutParams
@@ -227,7 +264,7 @@ class WhisperAccessibilityService : AccessibilityService() {
         feedbackParams.y = maxOf(margin, bubbleParams.y - margin)
     }
 
-    private fun showFeedback(text: String) {
+    private fun showFeedback(text: String, durationMs: Long = 2000) {
         handler.post {
             val view = feedbackView ?: return@post
             val bubbleParams = layoutParams ?: return@post
@@ -243,7 +280,7 @@ class WhisperAccessibilityService : AccessibilityService() {
             view.visibility = View.VISIBLE
             view.alpha = 0f
             view.animate().alpha(1f).setDuration(120).start()
-            handler.postDelayed(hideFeedback, 1200)
+            handler.postDelayed(hideFeedback, durationMs)
         }
     }
 
@@ -291,6 +328,7 @@ class WhisperAccessibilityService : AccessibilityService() {
         pcmStream = ByteArrayOutputStream()
         audioRecord!!.startRecording()
         state = State.RECORDING
+        setBusy(false)
         setAppearance(COLOR_RECORDING)
         startPulse()
 
@@ -307,6 +345,7 @@ class WhisperAccessibilityService : AccessibilityService() {
         state = State.TRANSCRIBING
         stopPulse()
         setAppearance(COLOR_BUSY)
+        setBusy(true)
 
         audioRecord?.stop()
         audioRecord?.release()
@@ -349,6 +388,7 @@ class WhisperAccessibilityService : AccessibilityService() {
                 handler.post {
                     toast("Local error: ${e.message}")
                     state = State.IDLE
+                    setBusy(false)
                     setAppearance(COLOR_IDLE)
                 }
             }
@@ -367,6 +407,7 @@ class WhisperAccessibilityService : AccessibilityService() {
                 handler.post {
                     toast("Error: ${result.error ?: "empty transcript"}")
                     state = State.IDLE
+                    setBusy(false)
                     setAppearance(COLOR_IDLE)
                 }
             }
@@ -378,6 +419,7 @@ class WhisperAccessibilityService : AccessibilityService() {
             handler.post {
                 toast("No speech detected")
                 state = State.IDLE
+                setBusy(false)
                 setAppearance(COLOR_IDLE)
             }
             return
@@ -392,6 +434,7 @@ class WhisperAccessibilityService : AccessibilityService() {
                     toast("Post-processing needs API key. Using raw text.")
                     injectText(text)
                     state = State.IDLE
+                    setBusy(false)
                     setAppearance(COLOR_IDLE)
                 }
                 return
@@ -404,11 +447,10 @@ class WhisperAccessibilityService : AccessibilityService() {
                     if (result.text != null && result.text.isNotBlank()) {
                         injectText(result.text)
                     } else {
-                        toast("Cleanup failed: ${result.error}")
-                        // Fallback to original text
-                        injectText(text)
+                        injectText(text, feedback = "Cleanup failed — raw copied to clipboard", feedbackDurationMs = 3000)
                     }
                     state = State.IDLE
+                    setBusy(false)
                     setAppearance(COLOR_IDLE)
                 }
             }
@@ -416,21 +458,29 @@ class WhisperAccessibilityService : AccessibilityService() {
             handler.post {
                 injectText(text)
                 state = State.IDLE
+                setBusy(false)
                 setAppearance(COLOR_IDLE)
             }
         }
     }
 
     private fun reset(msg: String) {
-        toast(msg); state = State.IDLE; setAppearance(COLOR_IDLE)
+        toast(msg)
+        state = State.IDLE
+        setBusy(false)
+        setAppearance(COLOR_IDLE)
     }
 
     // --- Text injection ---
 
-    private fun injectText(text: String) {
+    private fun injectText(
+        text: String,
+        feedback: String? = "Copied to clipboard",
+        feedbackDurationMs: Long = 2000
+    ) {
         val clip = ClipData.newPlainText("phonewhisper", text)
         (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(clip)
-        showFeedback("Copied to clipboard")
+        feedback?.let { showFeedback(it, feedbackDurationMs) }
 
         val root = rootInActiveWindow
         val focused = root?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
