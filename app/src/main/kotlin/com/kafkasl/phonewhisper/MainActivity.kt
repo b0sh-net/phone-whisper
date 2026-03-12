@@ -59,6 +59,37 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
+        // --- Model download (temp, replaced in Chunk 2) ---
+        val dlStatus = TextView(this).apply { text = ""; textSize = 12f }
+        val recommended = MODEL_CATALOG.first { it.recommended }
+        layout.addView(Button(this).apply {
+            text = "Download ${recommended.name} (${recommended.sizeMb} MB)"
+            setOnClickListener {
+                if (ModelDownloader.isInstalled(this@MainActivity, recommended)) {
+                    dlStatus.text = "Already installed"; return@setOnClickListener
+                }
+                isEnabled = false
+                dlStatus.text = "Starting download..."
+                ModelDownloader.download(this@MainActivity, recommended) { state ->
+                    runOnUiThread {
+                        when (state) {
+                            is DownloadState.Downloading ->
+                                dlStatus.text = "Downloading: ${(state.progress * 100).toInt()}%"
+                            is DownloadState.Extracting ->
+                                dlStatus.text = "Extracting..."
+                            is DownloadState.Done -> {
+                                dlStatus.text = "✅ Done!"; isEnabled = true; updateStatus()
+                            }
+                            is DownloadState.Error -> {
+                                dlStatus.text = "❌ ${state.message}"; isEnabled = true
+                            }
+                        }
+                    }
+                }
+            }
+        })
+        layout.addView(dlStatus)
+
         // --- Accessibility ---
         layout.addView(Button(this).apply {
             text = "Open Accessibility Settings"
