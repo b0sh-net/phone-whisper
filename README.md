@@ -1,145 +1,155 @@
-# 🎤 Phone Whisper
+# Phone Whisper
 
-Push-to-talk dictation for Android. Tap a floating button, speak, and text gets inserted into whatever field has focus. Supports **local on-device transcription** (sherpa-onnx) and **cloud** (OpenAI Whisper API).
+Push-to-talk dictation for Android.
 
-Works with any keyboard (SwiftKey, Gboard, etc.) — no switching needed.
+Phone Whisper lets you speak into most apps without switching keyboards. Tap the floating button, speak, tap again, and your text is inserted into the currently focused text field when the app exposes a standard Android input field.
 
-## How It Works
+It supports:
 
-1. A small overlay dot floats on your screen (draggable, snaps to edges)
-2. **Tap** → starts recording (dot pulses red)
-3. **Tap again** → transcribes (dot turns gray)
-4. Transcribed text is pasted into the focused text field
-5. Dot returns to idle → ready for next dictation
+- **Local on-device transcription** with sherpa-onnx
+- **Cloud transcription** with OpenAI Whisper
+- **Optional cleanup** with OpenAI to fix punctuation and grammar
 
-If no text field is focused, the text is copied to clipboard.
+This is an early but usable MVP. I'm releasing it early to see if people actually want cross-app dictation on Android without replacing the keyboard.
 
-## Setup
+## Why I built this
 
-### Prerequisites
+- I like SwiftKey and want to keep it as keyboard but...
+- Most keyboard dictation felt too inaccurate
+- Gemini's voice input auto submits your transcription (which is pretty bad) so you can't edit it before sending
+- Post processing yields much better results, specially adding a list of keywords and technical terms you often use
+- Inserting text into the field you're already using lets you keep editing it like any other draft.
 
-- Android phone (API 30+ / Android 11+)
-- **For local mode**: a model pushed to the phone (see [Local Models](#local-models))
-- **For cloud mode**: OpenAI API key
+## Install
 
-### Install
+### Easiest: download the APK
 
-**Preferred — ADB (preserves accessibility permissions across updates):**
+Grab the latest APK from [GitHub Releases](https://github.com/kafkasl/phone-whisper/releases).
+
+Open it on your phone, install it, then launch the app once to finish setup.
+
+### Build from source
+
+Requires JDK 17 and Android SDK.
+
+```bash
+git clone https://github.com/kafkasl/phone-whisper.git && cd phone-whisper
+make build
+```
+
+APK output:
+
+```bash
+app/build/outputs/apk/debug/app-debug.apk
+```
+
+If you use ADB:
 
 ```bash
 make adb-install
 ```
 
-> **Why ADB?** Installing via package manager (Termux/file manager) resets
-> accessibility permissions every time. `adb install -r` does an in-place
-> update that keeps them.
+## How it works
 
-**Alternative — SSH via Tailscale:**
+1. A small overlay button floats on screen
+2. Tap once to start recording
+3. Tap again to stop
+4. Audio is transcribed locally or in the cloud
+5. The text is inserted into the focused text field
+6. If insertion fails, the text is copied to the clipboard
+
+## Setup
+
+### First-time setup
+
+1. Open **Phone Whisper**
+2. Grant the **audio recording** permission
+3. Enable the **Accessibility Service**
+4. Choose your transcription mode:
+   - **Local**: download a model in the app
+   - **Cloud**: paste your OpenAI API key
+
+Once setup is done, the floating button is ready.
+
+## Why does it need Accessibility?
+
+Phone Whisper uses Android Accessibility Service for one narrow reason: to insert dictated text into the currently focused text field across apps.
+
+It does **not** replace your keyboard. It does **not** run background automation. It only acts after you explicitly tap the overlay button.
+
+## Privacy
+
+Phone Whisper supports two modes:
+
+- **Local mode**: audio stays on-device
+- **Cloud mode**: audio is sent directly from your device to OpenAI's transcription API
+- **Optional cleanup**: transcript text is sent directly from your device to OpenAI's chat API
+
+I don't run a backend for this app. In cloud mode, requests go straight from your phone to OpenAI using your own API key.
+
+Full policy: [PRIVACY.md](PRIVACY.md)
+
+## Local models
+
+Models are stored in app storage under:
 
 ```bash
-cp .env.example .env   # set PHONE_HOST to your phone's Tailscale IP
-make install
+/data/data/com.kafkasl.phonewhisper/files/models/
 ```
 
-> Note: Tailscale MagicDNS may not resolve hostnames if your system DNS
-> doesn't include the `.ts.net` search domain. Use the Tailscale IP directly
-> (check with `tailscale status`). The phone also needs the `termux-api`
-> package installed (`pkg install termux-api` in Termux).
+Current catalog:
 
-### First-Time Phone Setup
+| Model | Size | Notes |
+|---|---:|---|
+| Parakeet 110M | 100 MB | Best default |
+| Whisper Base | 199 MB | Solid baseline |
+| Parakeet 0.6B | 465 MB | Best quality |
+| Moonshine Tiny | 103 MB | Fastest |
 
-1. **Open Phone Whisper** → grant the audio recording permission
+The app downloads and extracts models directly from the sherpa-onnx release archives.
 
-2. **Allow restricted settings** (required for sideloaded apps on Android 13+):
-   - **Settings → Apps → Phone Whisper → ⋮ (three dots) → "Allow restricted settings"**
-
-3. **Enable the accessibility service**:
-   - Tap **"Open Accessibility Settings"** in the app
-   - Find **Phone Whisper** → toggle **on** → confirm
-
-4. **Configure engine**:
-   - **Local mode** (default): push a model first (see below)
-   - **Cloud mode**: toggle to cloud, paste your OpenAI API key, save
-
-5. The overlay dot appears — you're ready!
-
-## Local Models
-
-Models live on the phone at `/data/data/com.kafkasl.phonewhisper/files/models/`.
-Push them via ADB (phone must be connected via USB):
-
-```bash
-# Download a model (example: moonshine tiny)
-wget https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-moonshine-tiny-en-int8.tar.bz2
-tar xjf sherpa-onnx-moonshine-tiny-en-int8.tar.bz2
-
-# Push to phone
-make push-model MODEL=sherpa-onnx-moonshine-tiny-en-int8
-```
-
-The app auto-detects model type (Moonshine, Whisper, Parakeet/NeMo).
-
-### Available Models
-
-| Model | Size | Speed* | Quality | Download |
-|-------|------|--------|---------|----------|
-| `sherpa-onnx-moonshine-tiny-en-int8` | ~117MB | ⚡ fastest | ★★☆ | [link](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-moonshine-tiny-en-int8.tar.bz2) |
-| `sherpa-onnx-whisper-tiny.en` | ~40MB | ⚡ fast | ★★☆ | [link](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.en.tar.bz2) |
-| `sherpa-onnx-whisper-base.en` | ~80MB | ⚡ fast | ★★★ | [link](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-base.en.tar.bz2) |
-| `sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8` | ~350MB | ⚡⚡⚡ | ★★★★ | [link](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2) |
-
-*Speed estimates on Pixel 5 (Snapdragon 765G)
-
-## Build
+## Development
 
 ```bash
 make build       # build debug APK
-make test        # run unit tests (12 tests)
+make test        # run unit tests
 make adb-install # build + install via ADB
-make push-model MODEL=/path/to/model  # push model to phone
 make clean       # clean build artifacts
 ```
 
-Requires JDK 17 and Android SDK.
+## App compatibility
 
-### Native Libraries
+Phone Whisper works best in apps that use standard Android text fields.
+Some apps use custom text surfaces or terminal-style views, which may not support direct accessibility paste.
+When insertion is not possible, Phone Whisper falls back to copying the transcript to the clipboard.
 
-The sherpa-onnx native `.so` files go in `app/src/main/jniLibs/arm64-v8a/` (gitignored).
-To set up from scratch:
+### Termux
 
-```bash
-wget https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.28/sherpa-onnx-v1.12.28-android.tar.bz2
-tar xjf sherpa-onnx-v1.12.28-android.tar.bz2
-mkdir -p app/src/main/jniLibs/arm64-v8a
-cp jniLibs/arm64-v8a/*.so app/src/main/jniLibs/arm64-v8a/
-```
+Termux's main terminal area is not a standard Android text field, so direct insertion may not work there.
 
-## Architecture
+To use Phone Whisper in Termux:
 
-```
-app/src/main/kotlin/com/kafkasl/phonewhisper/
-├── WavWriter.kt                    # PCM → WAV encoding (TDD)
-├── TranscriberClient.kt            # OpenAI Whisper API client (TDD)
-├── LocalTranscriber.kt             # sherpa-onnx wrapper, auto-detects model type
-├── WhisperAccessibilityService.kt  # overlay + recording + transcription + text injection
-└── MainActivity.kt                 # setup UI, engine selection
+1. Focus Termux
+2. Swipe the extra keys row (`ESC`, `CTRL`, `ALT`, arrows, etc.) left or right
+3. Switch to Termux's native text input box
+4. Dictate there
 
-app/src/main/kotlin/com/k2fsa/sherpa/onnx/
-├── OfflineRecognizer.kt            # sherpa-onnx Kotlin API (JNI bindings)
-├── OfflineStream.kt
-├── FeatureConfig.kt
-├── Vad.kt
-├── QnnConfig.kt
-└── HomophoneReplacerConfig.kt
-```
+Once text is inserted into the native input box, Termux sends it to the terminal normally.
 
-### Key Design Decisions
+## Current limitations
 
-- **Overlay uses `TYPE_ACCESSIBILITY_OVERLAY`** — no `SYSTEM_ALERT_WINDOW` permission needed
-- **Text injection via clipboard paste** — `ACTION_PASTE` on focused node, clipboard fallback
-- **Models on filesystem, not in APK** — keeps APK at 33MB, swap models without rebuilding
-- **Auto-detect model type** from files present in model directory
-- **ADB install for dev** — preserves accessibility permissions across updates
+- Accessibility permission is required for cross-app insertion
+- Some apps may block paste or text injection
+- Some apps use custom input surfaces instead of standard Android text fields
+- Local models are large
+- Cloud mode requires your own OpenAI API key
+- This is still an MVP
+
+## Support the project
+
+If Phone Whisper saves you time, you can sponsor the project on GitHub:
+
+- https://github.com/sponsors/kafkasl
 
 ## License
 
