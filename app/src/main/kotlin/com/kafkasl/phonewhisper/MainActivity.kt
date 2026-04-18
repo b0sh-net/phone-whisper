@@ -173,7 +173,7 @@ class MainActivity : AppCompatActivity() {
         resultContainer.visibility = View.VISIBLE
         resultText.text = "Decoding audio..."
         progressIndicator.visibility = View.VISIBLE
-        
+
         thread {
             val samples = AudioDecoder.decodeToPcm(this, uri)
             if (samples == null) {
@@ -188,20 +188,14 @@ class MainActivity : AppCompatActivity() {
 
             val useLocal = prefs().getBoolean("use_local", true)
             if (useLocal) {
-                val transcriber = localTranscriber ?: run {
-                    val models = LocalTranscriber.availableModels(this)
-                    if (models.isNotEmpty()) {
-                        localTranscriber = LocalTranscriber.create(this, models.first())
-                    }
-                    localTranscriber
-                }
+                val transcriber = getOrCreateTranscriber()
 
                 if (transcriber != null) {
                     val text = transcriber.transcribe(samples)
                     handleTranscriptionResult(text)
                 } else {
-                    runOnUiThread { 
-                        resultText.text = "Local model not ready"
+                    runOnUiThread {
+                        resultText.text = "Local model not ready. Check that a model is downloaded or try Cloud mode."
                         progressIndicator.visibility = View.GONE
                     }
                 }
@@ -216,7 +210,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 val wav = WavWriter.encode(pcm)
                 val apiKey = prefs().getString("api_key", "") ?: ""
-                
+
                 if (apiKey.isBlank()) {
                     runOnUiThread {
                         resultText.text = "API Key missing"
@@ -236,6 +230,35 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    /** Try to get an existing LocalTranscriber, or create one lazily. Synchronized. */
+    @Synchronized
+    private fun getOrCreateTranscriber(): LocalTranscriber? {
+        // If we already have one, just return it
+        localTranscriber?.let { return it }
+
+        // Check if the user's preferred model is installed
+        val preferredModel = prefs().getString("model_name", "")
+        if (preferredModel.isNullOrBlank().not()) {
+            val installed = ModelDownloader.isInstalled(
+                this,
+                MODEL_CATALOG.find { it.archive == preferredModel } ?: return null
+            )
+            if (installed) {
+                localTranscriber = LocalTranscriber.create(this, preferredModel!!)
+                localTranscriber?.let { return it }
+            }
+        }
+
+        // Fall back to any available installed model
+        val available = LocalTranscriber.availableModels(this)
+        if (available.isNotEmpty()) {
+            localTranscriber = LocalTranscriber.create(this, available.first())
+            return localTranscriber
+        }
+
+        return null
     }
 
     private fun handleTranscriptionResult(text: String) {
@@ -259,14 +282,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun initLocalModel() {
-        val modelName = prefs().getString("model_name", "") ?: ""
-        if (modelName.isBlank()) {
-            val models = LocalTranscriber.availableModels(this)
-            if (models.isNotEmpty()) localTranscriber = LocalTranscriber.create(this, models.first())
-        } else {
-            localTranscriber = LocalTranscriber.create(this, modelName)
+    private fun initLocalModel(): Boolean {
+        val modelName = prefs().getString("model_name", "")
+
+        // Load preferred model
+        if (!modelName.isNullOrBlank()) {
+            val model = MODEL_CATALOG.firstOrNull { it.archive == modelName }
+            if (model != null && ModelDownloader.isInstalled(this, model)) {
+                val t = LocalTranscriber.create(this, modelName)
+                if (t != null) {
+                    localTranscriber = t
+                    runOnUiThread { statusSubtitle.text = "Local model ready: ${model.name}" }
+                    return true
+                }
+            }
         }
+
+        // Fall back: auto-detect any installed model
+        val available = LocalTranscriber.availableModels(this)
+        for (name in available) {
+            val t = LocalTranscriber.create(this, name)
+            if (t != null) {
+                localTranscriber = t
+                runOnUiThread { statusSubtitle.text = "Local model ready: $name" }
+                return true
+            }
+        }
+
+        localTranscriber = null
+        runOnUiThread { statusSubtitle.text = "No local model installed" }
+        return false
     }
 
     // --- UI Logic (mostly unchanged but adapted) ---
@@ -290,11 +335,18 @@ class MainActivity : AppCompatActivity() {
     private fun onModelAction(model: Model) {
         if (ModelDownloader.isInstalled(this, model)) {
             prefs().edit().putString("model_name", model.archive).apply()
-            thread { initLocalModel() }
-            refresh(); return
+            thread {
+                val success = initLocalModel()
+                runOnUiThread {
+                    if (success) statusSubtitle.text = "Active model: ${model.name}"
+                    refresh()
+                }
+            }
+            return
         }
         val views = modelRows[model.archive] ?: return
-        views.dlBtn.isEnabled = false; views.progress.visibility = View.VISIBLE
+        views.dlBtn.isEnabled = false
+        views.progress.visibility = View.VISIBLE
         ModelDownloader.download(this, model) { state ->
             runOnUiThread {
                 when (state) {
@@ -302,11 +354,24 @@ class MainActivity : AppCompatActivity() {
                     is DownloadState.Extracting -> views.progress.isIndeterminate = true
                     is DownloadState.Done -> {
                         views.progress.visibility = View.GONE
+                        statusSubtitle.text = "Model installed: ${model.name}"
                         prefs().edit().putString("model_name", model.archive).apply()
-                        thread { initLocalModel() }
-                        refresh()
+                        // Wait for model to actually load before refreshing UI
+                        thread {
+                            val success = initLocalModel()
+                            runOnUiThread {
+                                if (success) statusSubtitle.text = "Model ready: ${model.name}"
+                                else statusSubtitle.text = "Failed to load model"
+                                refresh()
+                            }
+                        }
                     }
-                    is DownloadState.Error -> { views.progress.visibility = View.GONE; views.dlBtn.isEnabled = true }
+
+                    is DownloadState.Error -> {
+                        views.progress.visibility = View.GONE
+                        views.dlBtn.isEnabled = true
+                        statusSubtitle.text = "Download failed"
+                    }
                 }
             }
         }
