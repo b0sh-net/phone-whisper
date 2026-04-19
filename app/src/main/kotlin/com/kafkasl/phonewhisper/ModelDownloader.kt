@@ -43,25 +43,55 @@ object ModelDownloader {
     fun modelDir(ctx: Context, model: Model) =
         File(ctx.filesDir, "models/${model.archive}")
 
-    fun isInstalled(ctx: Context, model: Model) =
-        modelDir(ctx, model).exists()
+    fun isInstalled(ctx: Context, model: Model): Boolean {
+        val dir = modelDir(ctx, model)
+        if (!dir.exists()) return false
+        
+        // Basic sanity check: look for at least one .onnx or .ort file and a tokens file
+        val files = dir.listFiles() ?: return false
+        val hasModel = files.any { it.name.endsWith(".onnx") || it.name.endsWith(".ort") }
+        val hasTokens = files.any { it.name.contains("tokens.txt") }
+        return hasModel && hasTokens
+    }
 
     /** Download and extract model. Callbacks fire on background thread. */
     fun download(ctx: Context, model: Model, onState: (DownloadState) -> Unit) {
         val url = "$BASE_URL/${model.archive}.tar.bz2"
-        val tmpFile = File(ctx.cacheDir, "${model.archive}.tar.bz2")
-        val outDir = File(ctx.filesDir, "models")
+        val tmpArchive = File(ctx.cacheDir, "${model.archive}.tar.bz2")
+        val modelsDir = File(ctx.filesDir, "models")
+        val finalDir = modelDir(ctx, model)
 
         Thread {
             try {
-                downloadFile(url, tmpFile, onState)
+                downloadFile(url, tmpArchive, onState)
                 onState(DownloadState.Extracting)
-                extractTarBz2(tmpFile, outDir)
+                
+                // Extract to a temporary directory first to ensure atomicity
+                val tmpExtractDir = File(ctx.cacheDir, "extract_${model.archive}")
+                tmpExtractDir.deleteRecursively()
+                tmpExtractDir.mkdirs()
+                
+                extractTarBz2(tmpArchive, tmpExtractDir)
+                
+                // The archive usually contains a top-level directory. 
+                // We need to find the actual model content.
+                val extractedContent = tmpExtractDir.listFiles()?.firstOrNull { it.isDirectory }
+                    ?: tmpExtractDir
+                
+                // Move to final destination
+                finalDir.deleteRecursively()
+                if (!extractedContent.renameTo(finalDir)) {
+                    // Fallback to copy if rename fails across filesystems
+                    extractedContent.copyRecursively(finalDir, overwrite = true)
+                }
+                
+                tmpExtractDir.deleteRecursively()
                 onState(DownloadState.Done)
             } catch (e: Exception) {
+                finalDir.deleteRecursively()
                 onState(DownloadState.Error(e.message ?: "Unknown error"))
             } finally {
-                tmpFile.delete()
+                tmpArchive.delete()
             }
         }.start()
     }
