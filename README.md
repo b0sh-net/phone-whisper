@@ -81,4 +81,4 @@ The app downloads and extracts models directly from the sherpa-onnx release arch
 
 ## License
 
-Personal project. Do whatever you want with it.
+This project is licensed under the **GNU General Public License v3.0**. See the [LICENSE](LICENSE) file for details.
