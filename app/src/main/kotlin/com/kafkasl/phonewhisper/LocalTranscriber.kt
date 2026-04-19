@@ -45,7 +45,7 @@ class LocalTranscriber private constructor(private val recognizer: OfflineRecogn
             }
 
             return try {
-                val recognizer = OfflineRecognizer(assetManager = null, config = config)
+                val recognizer = OfflineRecognizer(null, config)
                 Log.i(TAG, "Loaded model: $modelName")
                 LocalTranscriber(recognizer)
             } catch (e: Exception) {
