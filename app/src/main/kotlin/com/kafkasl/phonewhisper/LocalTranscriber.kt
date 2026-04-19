@@ -39,17 +39,39 @@ class LocalTranscriber private constructor(private val recognizer: OfflineRecogn
                 return null
             }
 
+            Log.e(TAG, "create() called with modelName=$modelName")
+            Log.e(TAG, "Available classes: " + com.k2fsa.sherpa.onnx.OfflineRecognizer::class.java.name)
+
             val config = detectModelConfig(modelDir) ?: run {
                 Log.e(TAG, "Could not detect model type in $modelDir")
                 return null
             }
 
             return try {
+                Log.e(TAG, "About to call OfflineRecognizer constructor")
                 val recognizer = OfflineRecognizer(null, config)
                 Log.i(TAG, "Loaded model: $modelName")
                 LocalTranscriber(recognizer)
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e(TAG, "UnsatisfiedLinkError: ${e.message}")
+                Log.e(TAG, "Available .so files in APK: " + ctx.assets.list("libs")?.joinToString(", ") { "" })
+                Log.e(TAG, "JNI lib check: " + try {
+                    val libsDir = ctx.applicationInfo.nativeLibraryDir
+                    File(libsDir).listFiles()?.map { it.name }?.joinToString(", ")
+                } catch (e2: Exception) { "N/A: ${e2.message}" })
+                Log.e(TAG, "Full stack trace:", e)
+                null
+            } catch (e: NoSuchMethodError) {
+                Log.e(TAG, "NoSuchMethodError: ${e.message}")
+                Log.e(TAG, "Available OfflineRecognizer constructors:")
+                for (ctor in com.k2fsa.sherpa.onnx.OfflineRecognizer::class.java.constructors) {
+                    Log.e(TAG, "  " + ctor.parameterTypes.joinToString(", ") { it.simpleName })
+                }
+                Log.e(TAG, "Full stack trace:", e)
+                null
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to load model: ${e.message}")
+                Log.e(TAG, "Failed to load model: ${e.javaClass.name}: ${e.message}")
+                Log.e(TAG, "Full stack trace:", e)
                 null
             }
         }
@@ -68,18 +90,21 @@ class LocalTranscriber private constructor(private val recognizer: OfflineRecogn
             val preprocessFile = findFileExact(p, "preprocess.onnx")
                 ?: findFileStarting(p, "preprocess")
             if (preprocessFile != null) {
+                val moonshineConfig = OfflineMoonshineModelConfig(
+                    preprocessor = preprocessFile,
+                    encoder = findFileStarting(p, "encode")?.takeIf { !it.contains("decode") } ?: return null,
+                    uncachedDecoder = findFileStarting(p, "uncached_decode") ?: return null,
+                    cachedDecoder = findFileStarting(p, "cached_decode") ?: return null
+                )
+
+                val modelConfig = OfflineModelConfig(
+                    moonshine = moonshineConfig,
+                    tokens = tokens,
+                    numThreads = 2
+                )
+
                 return OfflineRecognizerConfig(
-                    modelConfig = OfflineModelConfig(
-                        moonshine = OfflineMoonshineModelConfig(
-                            preprocessor = preprocessFile,
-                            encoder = findFileStarting(p, "encode")?.takeIf { !it.contains("decode") }
-                                ?: return null,
-                            uncachedDecoder = findFileStarting(p, "uncached_decode") ?: return null,
-                            cachedDecoder = findFileStarting(p, "cached_decode") ?: return null,
-                        ),
-                        tokens = tokens,
-                        numThreads = 2,
-                    )
+                    modelConfig = modelConfig
                 )
             }
 
@@ -90,15 +115,20 @@ class LocalTranscriber private constructor(private val recognizer: OfflineRecogn
                 val merged = findFileExact(p, "merged.onnx")
                     ?: findFileStarting(p, "merged")
                     ?: findFileContaining(p, "merged_decode")
+
+                val moonshineConfig = OfflineMoonshineModelConfig(
+                    encoder = moonshineEncoder,
+                    mergedDecoder = merged ?: return null
+                )
+
+                val modelConfig = OfflineModelConfig(
+                    moonshine = moonshineConfig,
+                    tokens = tokens,
+                    numThreads = 2
+                )
+
                 return OfflineRecognizerConfig(
-                    modelConfig = OfflineModelConfig(
-                        moonshine = OfflineMoonshineModelConfig(
-                            encoder = moonshineEncoder,
-                            mergedDecoder = merged ?: return null,
-                        ),
-                        tokens = tokens,
-                        numThreads = 2,
-                    )
+                    modelConfig = modelConfig
                 )
             }
 
@@ -112,16 +142,20 @@ class LocalTranscriber private constructor(private val recognizer: OfflineRecogn
                 if (findFileContaining(p, "joiner") == null
                     && findFileStarting(p, "joiner") == null
                 ) {
+                    val whisperConfig = OfflineWhisperModelConfig(
+                        encoder = whisperEncoder,
+                        decoder = whisperDecoder
+                    )
+
+                    val modelConfig = OfflineModelConfig(
+                        whisper = whisperConfig,
+                        tokens = tokens,
+                        numThreads = 2,
+                        modelType = "whisper"
+                    )
+
                     return OfflineRecognizerConfig(
-                        modelConfig = OfflineModelConfig(
-                            whisper = OfflineWhisperModelConfig(
-                                encoder = whisperEncoder,
-                                decoder = whisperDecoder,
-                            ),
-                            tokens = tokens,
-                            numThreads = 2,
-                            modelType = "whisper",
-                        )
+                        modelConfig = modelConfig
                     )
                 }
             }
@@ -134,29 +168,39 @@ class LocalTranscriber private constructor(private val recognizer: OfflineRecogn
             val joiner = findFileContaining(p, "-joiner")
                 ?: findFileStarting(p, "joiner")
             if (encoder != null && decoder != null && joiner != null) {
+                val transducerConfig = OfflineTransducerModelConfig(
+                    encoder = encoder,
+                    decoder = decoder,
+                    joiner = joiner
+                )
+
+                val modelConfig = OfflineModelConfig(
+                    transducer = transducerConfig,
+                    tokens = tokens,
+                    numThreads = 2,
+                    modelType = "nemo_transducer"
+                )
+
                 return OfflineRecognizerConfig(
-                    modelConfig = OfflineModelConfig(
-                        transducer = OfflineTransducerModelConfig(
-                            encoder = encoder,
-                            decoder = decoder,
-                            joiner = joiner,
-                        ),
-                        tokens = tokens,
-                        numThreads = 2,
-                        modelType = "nemo_transducer",
-                    )
+                    modelConfig = modelConfig
                 )
             }
 
             // NeMo CTC (single model.onnx / model.int8.onnx)
             val ctcModel = findFileStarting(p, "model")
             if (ctcModel != null) {
+                val nemoConfig = OfflineNemoEncDecCtcModelConfig(
+                    model = ctcModel
+                )
+
+                val modelConfig = OfflineModelConfig(
+                    nemo = nemoConfig,
+                    tokens = tokens,
+                    numThreads = 2
+                )
+
                 return OfflineRecognizerConfig(
-                    modelConfig = OfflineModelConfig(
-                        nemo = OfflineNemoEncDecCtcModelConfig(model = ctcModel),
-                        tokens = tokens,
-                        numThreads = 2,
-                    )
+                    modelConfig = modelConfig
                 )
             }
 
