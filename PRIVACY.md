@@ -34,6 +34,5 @@ I do not run a backend for Phone Whisper and do not collect user accounts, analy
 
 Third-party services you choose to use, such as OpenAI, may process data according to their own terms and privacy policies.
 
-## Contact
+## 
 
-For questions about privacy, contact: pol.avms@gmail.com
