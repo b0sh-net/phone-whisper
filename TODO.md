@@ -29,6 +29,10 @@
 - [x] Build and verify APK.
 
 ## Known Issues / Bugs
+- [x] **Model Loading Crash (v0.4.3/v0.4.4)**: Fixed. Root causes:
+  - **AAR Binary Incompatibility**: The `sherpa-onnx` AAR contains Kotlin data classes, but local project definitions were outdated. Refactored `LocalTranscriber.kt` to use the AAR's definitions directly via named parameters and fixed the `OfflineRecognizer` constructor call (added missing `AssetManager` parameter).
+  - **Model Corruption (Protobuf parsing failed)**: Interrupted downloads or extractions left partial files. Implemented **atomic extraction**: models are now extracted to a temporary directory and moved to the final destination only upon success.
+  - **Improved Validation**: `isInstalled()` now checks for essential files (`.onnx`/`.ort` and `tokens.txt`) instead of just the directory existence.
 - [x] **Local Transcription Failure**: Fixed. Root causes:
   - `detectModelConfig()` in `LocalTranscriber.kt` only looked for `tokens.txt` literally, but sherpa-onnx Whisper models use variant-prefixed names like `base.en-tokens.txt`. Added `findTokensFile()` to handle `tokens.txt`, `*-tokens.txt`, `*.tokens.txt`.
   - `findFile()` only matched files starting with `"encoder"` / `"decoder"`, but Whisper model files are named `xxx-encoder.onnx`. Replaced with `findFileContaining()` and `findFileStarting()` that handle hyphen-prefixed names.

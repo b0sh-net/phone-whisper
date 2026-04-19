@@ -14,6 +14,18 @@ It supports:
 - **Cloud transcription** with OpenAI Whisper
 - **Optional cleanup** with OpenAI to fix punctuation and grammar
 
+## Changelog
+
+### v0.4.4 (2026-04-19)
+- **Fixed Model Corruption**: Implemented atomic extraction (extract to temp dir, then move) to prevent loading incomplete/corrupted models if the download or extraction process is interrupted.
+- **Improved Installation Validation**: The app now verifies the presence of essential model files before considering a model "installed".
+- **Enhanced AAR Compatibility**: Refactored `LocalTranscriber` to align with the `sherpa-onnx` AAR's Kotlin data classes and constructor signatures, resolving runtime `NoSuchMethodError`.
+- **Version bump**: 0.4.3 -> 0.4.4 (versionCode 6).
+
+### v0.4.1
+- **Fixed Local Transcription Failure**: Resolved model detection logic and lazily loading transcribers.
+- **Fixed Model Download UI**: Completion status now properly reflects "installed" without app restart.
+
 ## How it works
 
 1. Select an audio file (MP3, M4A, WAV, etc.) in any Android app (e.g., File Manager, Voice Recorder).
