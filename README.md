@@ -16,6 +16,13 @@ It supports:
 
 ## Changelog
 
+### v0.5.0 (2026-04-20)
+- **Separated Transcription UI from Settings**: Created a dedicated `TranscribeActivity` for audio transcription, launched automatically when sharing an audio file via the "Share" menu.
+- **Refactored MainActivity**: Removed all transcription logic. It now serves exclusively as the settings panel (engine selection, model catalog, API key).
+- **Added TranscriberManager singleton**: Shares the `LocalTranscriber` instance between activities so that model changes in settings persist without re-downloading on each transcription session.
+- **Updated Intent filters**: Moved `ACTION_SEND` and `ACTION_SEND_MULTIPLE` filters to `TranscribeActivity`.
+- **Version bump**: 0.4.4 -> 0.5.0 (versionCode 7).
+
 ### v0.4.4 (2026-04-19)
 - **Fixed Model Corruption**: Implemented atomic extraction (extract to temp dir, then move) to prevent loading incomplete/corrupted models if the download or extraction process is interrupted.
 - **Improved Installation Validation**: The app now verifies the presence of essential model files before considering a model "installed".
