@@ -29,14 +29,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusSubtitle: TextView
     private lateinit var modelContainer: LinearLayout
     private lateinit var promptContainer: LinearLayout
-    private lateinit var resultContainer: LinearLayout
-    private lateinit var resultText: TextView
-    private lateinit var progressIndicator: LinearProgressIndicator
 
     private val modelRows = mutableMapOf<String, ModelRowViews>()
     private val promptRows = mutableMapOf<String, PromptRowViews>()
-
-    private var localTranscriber: LocalTranscriber? = null
 
     private data class ModelRowViews(
         val radio: MaterialRadioButton,
@@ -68,36 +63,6 @@ class MainActivity : AppCompatActivity() {
         statusSubtitle = statusRow.findViewWithTag("subtitle")
         root.addView(statusRow)
 
-        // --- Result Section ---
-        resultContainer = vertical(dp(24), dp(16)).apply {
-            visibility = View.GONE
-            background = ContextCompat.getDrawable(this@MainActivity, android.R.drawable.editbox_dropdown_light_frame)
-        }
-        
-        progressIndicator = LinearProgressIndicator(this).apply {
-            isIndeterminate = true
-            visibility = View.GONE
-        }
-        resultContainer.addView(progressIndicator)
-
-        resultText = TextView(this).apply {
-            textSize = 16f
-            setTextColor(attrColor(android.R.attr.textColorPrimary))
-            setPadding(0, dp(8), 0, dp(16))
-        }
-        resultContainer.addView(resultText)
-
-        val copyBtn = MaterialButton(this).apply {
-            text = "Copy to Clipboard"
-            setOnClickListener {
-                val clip = ClipData.newPlainText("transcription", resultText.text)
-                (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(clip)
-                Toast.makeText(this@MainActivity, "Copied!", Toast.LENGTH_SHORT).show()
-            }
-        }
-        resultContainer.addView(copyBtn)
-        root.addView(resultContainer)
-
         // --- Engine Section ---
         root.addView(sectionHeader("Engine"))
         
@@ -110,6 +75,7 @@ class MainActivity : AppCompatActivity() {
             val newCloud = !cloudSwitch.isChecked
             prefs().edit().putBoolean("use_local", !newCloud).apply()
             cloudSwitch.isChecked = newCloud
+            TranscriberManager.reset()
             refresh()
         })
 
@@ -147,169 +113,23 @@ class MainActivity : AppCompatActivity() {
             addView(root)
         })
 
-        // Handle incoming intent
-        handleIntent(intent)
-        
-        // Load model in background
+        // Load model in background if needed
         thread { initLocalModel() }
 
         refresh()
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        handleIntent(intent)
-    }
-
-    private fun handleIntent(intent: Intent?) {
-        if (intent?.action == Intent.ACTION_SEND && intent.type?.startsWith("audio/") == true) {
-            (intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM))?.let { uri ->
-                startTranscription(uri)
-            }
-        }
-    }
-
-    private fun startTranscription(uri: Uri) {
-        resultContainer.visibility = View.VISIBLE
-        resultText.text = "Decoding audio..."
-        progressIndicator.visibility = View.VISIBLE
-
-        thread {
-            val samples = AudioDecoder.decodeToPcm(this, uri)
-            if (samples == null) {
-                runOnUiThread {
-                    resultText.text = "Error decoding audio file"
-                    progressIndicator.visibility = View.GONE
-                }
-                return@thread
-            }
-
-            runOnUiThread { resultText.text = "Transcribing..." }
-
-            val useLocal = prefs().getBoolean("use_local", true)
-            if (useLocal) {
-                val transcriber = getOrCreateTranscriber()
-
-                if (transcriber != null) {
-                    val text = transcriber.transcribe(samples)
-                    handleTranscriptionResult(text)
-                } else {
-                    runOnUiThread {
-                        resultText.text = "Local model not ready. Check that a model is downloaded or try Cloud mode."
-                        progressIndicator.visibility = View.GONE
-                    }
-                }
-            } else {
-                // For cloud, we need a WAV. Repurposing WavWriter.
-                // Note: we need to convert FloatArray back to Short PCM bytes
-                val pcm = ByteArray(samples.size * 2)
-                for (i in samples.indices) {
-                    val s = (samples[i] * 32767).toInt().coerceIn(-32768, 32767).toShort()
-                    pcm[i * 2] = (s.toInt() and 0xFF).toByte()
-                    pcm[i * 2 + 1] = (s.toInt() shr 8 and 0xFF).toByte()
-                }
-                val wav = WavWriter.encode(pcm)
-                val apiKey = prefs().getString("api_key", "") ?: ""
-
-                if (apiKey.isBlank()) {
-                    runOnUiThread {
-                        resultText.text = "API Key missing"
-                        progressIndicator.visibility = View.GONE
-                    }
-                    return@thread
-                }
-
-                TranscriberClient.transcribe(wav, apiKey) { result ->
-                    runOnUiThread {
-                        if (result.text != null) handleTranscriptionResult(result.text)
-                        else {
-                            resultText.text = "API Error: ${result.error}"
-                            progressIndicator.visibility = View.GONE
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /** Try to get an existing LocalTranscriber, or create one lazily. Synchronized. */
-    @Synchronized
-    private fun getOrCreateTranscriber(): LocalTranscriber? {
-        // If we already have one, just return it
-        localTranscriber?.let { return it }
-
-        // Check if the user's preferred model is installed
-        val preferredModel = prefs().getString("model_name", "")
-        if (preferredModel.isNullOrBlank().not()) {
-            val installed = ModelDownloader.isInstalled(
-                this,
-                MODEL_CATALOG.find { it.archive == preferredModel } ?: return null
-            )
-            if (installed) {
-                localTranscriber = LocalTranscriber.create(this, preferredModel!!)
-                localTranscriber?.let { return it }
-            }
-        }
-
-        // Fall back to any available installed model
-        val available = LocalTranscriber.availableModels(this)
-        if (available.isNotEmpty()) {
-            localTranscriber = LocalTranscriber.create(this, available.first())
-            return localTranscriber
-        }
-
-        return null
-    }
-
-    private fun handleTranscriptionResult(text: String) {
-        val usePostProcessing = prefs().getBoolean("use_post_processing", false)
-        val apiKey = prefs().getString("api_key", "") ?: ""
-
-        if (usePostProcessing && apiKey.isNotBlank()) {
-            runOnUiThread { resultText.text = "Cleaning up..." }
-            val prompt = prefs().getString("post_processing_prompt", PostProcessor.DEFAULT_PROMPT) ?: PostProcessor.DEFAULT_PROMPT
-            PostProcessor.process(text, prompt, apiKey) { result ->
-                runOnUiThread {
-                    resultText.text = result.text ?: text
-                    progressIndicator.visibility = View.GONE
-                }
-            }
-        } else {
-            runOnUiThread {
-                resultText.text = text
-                progressIndicator.visibility = View.GONE
-            }
-        }
-    }
-
     private fun initLocalModel(): Boolean {
         val modelName = prefs().getString("model_name", "")
+        runOnUiThread { statusSubtitle.text = "Initializing model..." }
 
-        // Load preferred model
-        if (!modelName.isNullOrBlank()) {
-            val model = MODEL_CATALOG.firstOrNull { it.archive == modelName }
-            if (model != null && ModelDownloader.isInstalled(this, model)) {
-                val t = LocalTranscriber.create(this, modelName)
-                if (t != null) {
-                    localTranscriber = t
-                    runOnUiThread { statusSubtitle.text = "Local model ready: ${model.name}" }
-                    return true
-                }
-            }
+        val t = TranscriberManager.getOrCreateTranscriber(this)
+        if (t != null) {
+            val name = MODEL_CATALOG.find { it.archive == modelName }?.name ?: modelName ?: "Unknown"
+            runOnUiThread { statusSubtitle.text = "Local model ready: $name" }
+            return true
         }
 
-        // Fall back: auto-detect any installed model
-        val available = LocalTranscriber.availableModels(this)
-        for (name in available) {
-            val t = LocalTranscriber.create(this, name)
-            if (t != null) {
-                localTranscriber = t
-                runOnUiThread { statusSubtitle.text = "Local model ready: $name" }
-                return true
-            }
-        }
-
-        localTranscriber = null
         runOnUiThread { statusSubtitle.text = "No local model installed" }
         return false
     }
@@ -335,6 +155,7 @@ class MainActivity : AppCompatActivity() {
     private fun onModelAction(model: Model) {
         if (ModelDownloader.isInstalled(this, model)) {
             prefs().edit().putString("model_name", model.archive).apply()
+            TranscriberManager.reset()
             thread {
                 val success = initLocalModel()
                 runOnUiThread {
@@ -356,6 +177,7 @@ class MainActivity : AppCompatActivity() {
                         views.progress.visibility = View.GONE
                         statusSubtitle.text = "Model installed: ${model.name}"
                         prefs().edit().putString("model_name", model.archive).apply()
+                        TranscriberManager.reset()
                         // Wait for model to actually load before refreshing UI
                         thread {
                             val success = initLocalModel()
