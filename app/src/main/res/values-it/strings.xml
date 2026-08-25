@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Audio To Text</string>
+
+    <!-- Main activity -->
+    <string name="status_label">Stato</string>
+    <string name="status_ready">Pronto</string>
+    <string name="section_local_models">Modelli locali</string>
+    <string name="status_initializing_model">Inizializzazione del modello...</string>
+    <string name="status_local_model_ready">Modello locale pronto: %1$s</string>
+    <string name="status_no_local_model">Nessun modello locale installato</string>
+    <string name="status_active_model">Modello attivo: %1$s</string>
+    <string name="status_installing_model">Installazione del modello: %1$s</string>
+    <string name="status_model_installed">Modello installato: %1$s</string>
+    <string name="status_model_ready">Modello pronto: %1$s</string>
+    <string name="status_model_load_failed">Caricamento del modello non riuscito</string>
+    <string name="status_download_failed">Download non riuscito: %1$s</string>
+    <string name="subtitle_downloading">Download in corso… %1$d%%</string>
+    <string name="subtitle_installing">Installazione del modello in corso…</string>
+    <string name="subtitle_installing_file">Installazione: %1$s</string>
+    <string name="subtitle_installed">Installato</string>
+
+    <!-- Info section (variable content based on model state) -->
+    <string name="info_no_model">Seleziona il modello da utilizzare per la trascrizione degli audio. Parakeet 0.6B è il modello consigliato per trascrivere audio in varie lingue.</string>
+    <string name="info_downloading">Attendi il completamento del download e dell\'installazione del modello senza chiudere l\'applicazione.</string>
+    <string name="info_model_ready">Utilizza la funzione Condividi selezionando Audio To Text come destinatario della condivisione. La trascrizione avverrà immediatamente.</string>
+
+    <!-- Model quality labels (model names are not translated) -->
+    <string name="quality_best_value">★★★ Miglior rapporto qualità/prezzo</string>
+    <string name="quality_three">★★★</string>
+    <string name="quality_best_quality">★★★★ Qualità migliore</string>
+    <string name="quality_fast">★★☆ Veloce</string>
+    <string name="model_size_mb">%1$s · %2$d MB</string>
+
+    <!-- Transcribe activity -->
+    <string name="transcribe_activity_label">Audio To Text: Trascrizione</string>
+    <string name="title_transcribing">Trascrizione audio</string>
+    <string name="status_initializing">Inizializzazione...</string>
+    <string name="result_preparing">Preparazione...</string>
+    <string name="action_copy_to_clipboard">Copia negli appunti</string>
+    <string name="toast_copied">Copiato!</string>
+    <string name="action_close">Chiudi</string>
+    <string name="error_no_audio_received">Nessun file audio ricevuto</string>
+    <string name="error_share_audio">Condividi un file audio da un\'altra applicazione.</string>
+    <string name="status_processing_audio">Elaborazione dell\'audio...</string>
+    <string name="result_decoding_audio">Decodifica dell\'audio...</string>
+    <string name="status_decoding_failed">Decodifica non riuscita</string>
+    <string name="error_decoding_audio">Errore durante la decodifica del file audio. Assicurati che sia un formato audio valido.</string>
+    <string name="status_transcribing">Trascrizione in corso...</string>
+    <string name="result_in_progress">In corso...</string>
+    <string name="status_local_model_error">Errore del modello locale</string>
+    <string name="error_local_model_not_ready">Modello locale non pronto. Controlla che un modello sia stato scaricato nelle impostazioni dell\'app.</string>
+    <string name="status_finished">Finito</string>
+</resources>

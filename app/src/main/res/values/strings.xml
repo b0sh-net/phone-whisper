@@ -1,5 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Audio To Text</string>
-    <string name="accessibility_description">Dictation: records audio, transcribes, and inserts text into focused fields.</string>
+
+    <!-- Main activity -->
+    <string name="status_label">Status</string>
+    <string name="status_ready">Ready</string>
+    <string name="section_local_models">Local models</string>
+    <string name="status_initializing_model">Initializing model...</string>
+    <string name="status_local_model_ready">Local model ready: %1$s</string>
+    <string name="status_no_local_model">No local model installed</string>
+    <string name="status_active_model">Active model: %1$s</string>
+    <string name="status_installing_model">Installing model: %1$s</string>
+    <string name="status_model_installed">Model installed: %1$s</string>
+    <string name="status_model_ready">Model ready: %1$s</string>
+    <string name="status_model_load_failed">Failed to load model</string>
+    <string name="status_download_failed">Download failed: %1$s</string>
+    <string name="subtitle_downloading">Downloading… %1$d%%</string>
+    <string name="subtitle_installing">Installing model…</string>
+    <string name="subtitle_installing_file">Installing: %1$s</string>
+    <string name="subtitle_installed">Installed</string>
+
+    <!-- Info section (variable content based on model state) -->
+    <string name="info_no_model">Select the model to use for transcribing your audio. Parakeet 0.6B is the recommended model for transcribing audio in various languages.</string>
+    <string name="info_downloading">Wait for the model download and installation to complete without closing the application.</string>
+    <string name="info_model_ready">Use the Share function by selecting Audio To Text as the sharing destination. Transcription will start immediately.</string>
+
+    <!-- Model quality labels (model names are not translated) -->
+    <string name="quality_best_value">★★★ Best value</string>
+    <string name="quality_three">★★★</string>
+    <string name="quality_best_quality">★★★★ Best quality</string>
+    <string name="quality_fast">★★☆ Fast</string>
+    <string name="model_size_mb">%1$s · %2$d MB</string>
+
+    <!-- Transcribe activity -->
+    <string name="transcribe_activity_label">Audio To Text: Transcribe</string>
+    <string name="title_transcribing">Transcribing Audio</string>
+    <string name="status_initializing">Initializing...</string>
+    <string name="result_preparing">Preparing...</string>
+    <string name="action_copy_to_clipboard">Copy to Clipboard</string>
+    <string name="toast_copied">Copied!</string>
+    <string name="action_close">Close</string>
+    <string name="error_no_audio_received">No audio file received</string>
+    <string name="error_share_audio">Please share an audio file from another app.</string>
+    <string name="status_processing_audio">Processing audio...</string>
+    <string name="result_decoding_audio">Decoding audio...</string>
+    <string name="status_decoding_failed">Decoding failed</string>
+    <string name="error_decoding_audio">Error decoding audio file. Make sure it\'s a valid audio format.</string>
+    <string name="status_transcribing">Transcribing...</string>
+    <string name="result_in_progress">In progress...</string>
+    <string name="status_local_model_error">Local model error</string>
+    <string name="error_local_model_not_ready">Local model not ready. Check that a model is downloaded in the app settings.</string>
+    <string name="status_finished">Finished</string>
 </resources>

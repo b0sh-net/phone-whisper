@@ -24,7 +24,7 @@
         <activity
             android:name=".TranscribeActivity"
             android:exported="true"
-            android:label="Audio To Text: Transcribe"
+            android:label="@string/transcribe_activity_label"
             android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

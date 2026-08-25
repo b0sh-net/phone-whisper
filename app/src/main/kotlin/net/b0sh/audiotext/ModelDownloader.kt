@@ -12,19 +12,19 @@ data class Model(
     val name: String,
     val archive: String,
     val sizeMb: Int,
-    val quality: String,
+    val qualityRes: Int,
     val recommended: Boolean = false,
 )
 
 val MODEL_CATALOG = listOf(
     Model("Parakeet 110M", "sherpa-onnx-nemo-parakeet_tdt_ctc_110m-en-36000-int8",
-        100, "★★★ Best value", recommended = true),
+        100, R.string.quality_best_value, recommended = true),
     Model("Whisper Base", "sherpa-onnx-whisper-base.en",
-        199, "★★★"),
+        199, R.string.quality_three),
     Model("Parakeet 0.6B", "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
-        465, "★★★★ Best quality"),
+        465, R.string.quality_best_quality),
     Model("Moonshine Tiny", "sherpa-onnx-moonshine-tiny-en-int8",
-        103, "★★☆ Fast"),
+        103, R.string.quality_fast),
 )
 
 sealed class DownloadState {

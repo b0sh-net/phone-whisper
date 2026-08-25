@@ -61,13 +61,13 @@ class MainActivity : AppCompatActivity() {
         root.addView(infoSection)
 
         // Status row
-        val statusRow = settingsRow("Status", "Ready")
+        val statusRow = settingsRow(string(R.string.status_label), string(R.string.status_ready))
         statusSubtitle = statusRow.findViewWithTag("subtitle")
         root.addView(statusRow)
 
         // Local Models section
         modelContainer = vertical(0)
-        modelContainer.addView(sectionHeader("Local models"))
+        modelContainer.addView(sectionHeader(string(R.string.section_local_models)))
         for (m in MODEL_CATALOG) modelContainer.addView(buildModelRow(m))
         root.addView(modelContainer)
 
@@ -84,16 +84,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun initLocalModel(): Boolean {
         val modelName = prefs().getString("model_name", "")
-        runOnUiThread { statusSubtitle.text = "Initializing model..." }
+        runOnUiThread { statusSubtitle.text = string(R.string.status_initializing_model) }
 
         val t = TranscriberManager.getOrCreateTranscriber(this)
         if (t != null) {
             val name = MODEL_CATALOG.find { it.archive == modelName }?.name ?: modelName ?: "Unknown"
-            runOnUiThread { statusSubtitle.text = "Local model ready: $name" }
+            runOnUiThread { statusSubtitle.text = string(R.string.status_local_model_ready, name) }
             return true
         }
 
-        runOnUiThread { statusSubtitle.text = "No local model installed" }
+        runOnUiThread { statusSubtitle.text = string(R.string.status_no_local_model) }
         return false
     }
 
@@ -108,7 +108,7 @@ class MainActivity : AppCompatActivity() {
             gravity = Gravity.CENTER_VERTICAL
             addView(dlBtn); addView(radio)
         }
-        val row = settingsRow(model.name, "${model.quality} · ${model.sizeMb} MB", rightContainer) { onModelAction(model) }
+        val row = settingsRow(model.name, string(R.string.model_size_mb, string(model.qualityRes), model.sizeMb), rightContainer) { onModelAction(model) }
         val textContainer = row.getChildAt(0) as LinearLayout
         textContainer.addView(progress)
         modelRows[model.archive] = ModelRowViews(radio, progress, textContainer.findViewWithTag("subtitle"), dlBtn)
@@ -122,7 +122,7 @@ class MainActivity : AppCompatActivity() {
             thread {
                 val success = initLocalModel()
                 runOnUiThread {
-                    if (success) statusSubtitle.text = "Active model: ${model.name}"
+                    if (success) statusSubtitle.text = string(R.string.status_active_model, model.name)
                     refresh()
                 }
             }
@@ -132,7 +132,7 @@ class MainActivity : AppCompatActivity() {
         views.dlBtn.isEnabled = false
         views.progress.visibility = View.VISIBLE
         views.progress.isIndeterminate = false
-        views.subtitle.text = "Downloading… 0%"
+        views.subtitle.text = string(R.string.subtitle_downloading, 0)
         downloading = true
         refresh()
         ModelDownloader.download(this, model) { state ->
@@ -140,31 +140,31 @@ class MainActivity : AppCompatActivity() {
                 when (state) {
                     is DownloadState.Downloading -> {
                         views.progress.progress = (state.progress * 100).toInt()
-                        views.subtitle.text = "Downloading… ${(state.progress * 100).toInt()}%"
+                        views.subtitle.text = string(R.string.subtitle_downloading, (state.progress * 100).toInt())
                     }
                     is DownloadState.Extracting -> {
                         views.progress.isIndeterminate = true
                         views.subtitle.text = if (state.currentFile.isBlank())
-                            "Installing model…"
+                            string(R.string.subtitle_installing)
                         else
-                            "Installing: ${state.currentFile}"
-                        statusSubtitle.text = "Installing model: ${model.name}"
+                            string(R.string.subtitle_installing_file, state.currentFile)
+                        statusSubtitle.text = string(R.string.status_installing_model, model.name)
                     }
                     is DownloadState.Done -> {
                         downloading = false
                         updateInfoSection()
                         views.progress.isIndeterminate = false
                         views.progress.visibility = View.GONE
-                        views.subtitle.text = "Installed"
-                        statusSubtitle.text = "Model installed: ${model.name}"
+                        views.subtitle.text = string(R.string.subtitle_installed)
+                        statusSubtitle.text = string(R.string.status_model_installed, model.name)
                         prefs().edit().putString("model_name", model.archive).apply()
                         TranscriberManager.reset()
                         // Wait for model to actually load before refreshing UI
                         thread {
                             val success = initLocalModel()
                             runOnUiThread {
-                                if (success) statusSubtitle.text = "Model ready: ${model.name}"
-                                else statusSubtitle.text = "Failed to load model"
+                                if (success) statusSubtitle.text = string(R.string.status_model_ready, model.name)
+                                else statusSubtitle.text = string(R.string.status_model_load_failed)
                                 refresh()
                             }
                         }
@@ -174,9 +174,9 @@ class MainActivity : AppCompatActivity() {
                         downloading = false
                         views.progress.isIndeterminate = false
                         views.progress.visibility = View.GONE
-                        views.subtitle.text = "${model.quality} · ${model.sizeMb} MB"
+                        views.subtitle.text = string(R.string.model_size_mb, string(model.qualityRes), model.sizeMb)
                         views.dlBtn.isEnabled = true
-                        statusSubtitle.text = "Download failed: ${state.message}"
+                        statusSubtitle.text = string(R.string.status_download_failed, state.message)
                         updateInfoSection()
                     }
                 }
@@ -198,12 +198,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateInfoSection() {
         infoSection.text = when {
-            downloading ->
-                "Wait for the model download and installation to complete without closing the application."
-            MODEL_CATALOG.any { ModelDownloader.isInstalled(this, it) } ->
-                "Use the Share function by selecting Audio To Text as the sharing destination. Transcription will start immediately."
-            else ->
-                "Select the model to use for transcribing your audio. Parakeet 0.6B is the recommended model for transcribing audio in various languages."
+            downloading -> string(R.string.info_downloading)
+            MODEL_CATALOG.any { ModelDownloader.isInstalled(this, it) } -> string(R.string.info_model_ready)
+            else -> string(R.string.info_no_model)
         }
     }
 
@@ -238,5 +235,7 @@ class MainActivity : AppCompatActivity() {
         val ta = obtainStyledAttributes(intArrayOf(attr))
         val color = ta.getColor(0, 0); ta.recycle(); return color
     }
+    private fun string(resId: Int, vararg args: Any): String =
+        getString(resId, *args)
     private fun prefs() = getSharedPreferences("audiotext", MODE_PRIVATE)
 }

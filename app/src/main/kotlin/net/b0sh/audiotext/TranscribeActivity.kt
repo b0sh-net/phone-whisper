@@ -32,7 +32,7 @@ class TranscribeActivity : AppCompatActivity() {
 
         // Header
         val header = TextView(this).apply {
-            text = "Transcribing Audio"
+            text = string(R.string.title_transcribing)
             textSize = 24f
             setTypeface(null, Typeface.BOLD)
             setPadding(0, 0, 0, dp(16))
@@ -41,7 +41,7 @@ class TranscribeActivity : AppCompatActivity() {
 
         // Status Label
         statusLabel = TextView(this).apply {
-            text = "Initializing..."
+            text = string(R.string.status_initializing)
             textSize = 16f
             setPadding(0, 0, 0, dp(24))
         }
@@ -62,16 +62,16 @@ class TranscribeActivity : AppCompatActivity() {
             textSize = 16f
             setTextColor(attrColor(android.R.attr.textColorPrimary))
             setPadding(0, dp(8), 0, dp(16))
-            text = "Preparing..."
+            text = string(R.string.result_preparing)
         }
         resultContainer.addView(resultText)
 
         val copyBtn = MaterialButton(this).apply {
-            text = "Copy to Clipboard"
+            text = string(R.string.action_copy_to_clipboard)
             setOnClickListener {
                 val clip = ClipData.newPlainText("transcription", resultText.text)
                 (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(clip)
-                Toast.makeText(this@TranscribeActivity, "Copied!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@TranscribeActivity, string(R.string.toast_copied), Toast.LENGTH_SHORT).show()
             }
         }
         resultContainer.addView(copyBtn)
@@ -79,7 +79,7 @@ class TranscribeActivity : AppCompatActivity() {
 
         // Close Button
         val closeBtn = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = "Close"
+            text = string(R.string.action_close)
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(32) }
             setOnClickListener { finish() }
         }
@@ -109,31 +109,31 @@ class TranscribeActivity : AppCompatActivity() {
                 startTranscription(uri)
             }
         } else {
-            statusLabel.text = "No audio file received"
+            statusLabel.text = string(R.string.error_no_audio_received)
             progressIndicator.visibility = View.GONE
-            resultText.text = "Please share an audio file from another app."
+            resultText.text = string(R.string.error_share_audio)
         }
     }
 
     private fun startTranscription(uri: Uri) {
-        statusLabel.text = "Processing audio..."
-        resultText.text = "Decoding audio..."
+        statusLabel.text = string(R.string.status_processing_audio)
+        resultText.text = string(R.string.result_decoding_audio)
         progressIndicator.visibility = View.VISIBLE
 
         thread {
             val samples = AudioDecoder.decodeToPcm(this, uri)
             if (samples == null) {
                 runOnUiThread {
-                    statusLabel.text = "Decoding failed"
-                    resultText.text = "Error decoding audio file. Make sure it's a valid audio format."
+                    statusLabel.text = string(R.string.status_decoding_failed)
+                    resultText.text = string(R.string.error_decoding_audio)
                     progressIndicator.visibility = View.GONE
                 }
                 return@thread
             }
 
             runOnUiThread {
-                statusLabel.text = "Transcribing..."
-                resultText.text = "In progress..."
+                statusLabel.text = string(R.string.status_transcribing)
+                resultText.text = string(R.string.result_in_progress)
             }
 
             val transcriber = TranscriberManager.getOrCreateTranscriber(this)
@@ -143,8 +143,8 @@ class TranscribeActivity : AppCompatActivity() {
                 handleTranscriptionResult(text)
             } else {
                 runOnUiThread {
-                    statusLabel.text = "Local model error"
-                    resultText.text = "Local model not ready. Check that a model is downloaded in the app settings."
+                    statusLabel.text = string(R.string.status_local_model_error)
+                    resultText.text = string(R.string.error_local_model_not_ready)
                     progressIndicator.visibility = View.GONE
                 }
             }
@@ -153,7 +153,7 @@ class TranscribeActivity : AppCompatActivity() {
 
     private fun handleTranscriptionResult(text: String) {
         runOnUiThread {
-            statusLabel.text = "Finished"
+            statusLabel.text = string(R.string.status_finished)
             resultText.text = text
             progressIndicator.visibility = View.GONE
         }
@@ -169,6 +169,9 @@ class TranscribeActivity : AppCompatActivity() {
         val ta = obtainStyledAttributes(intArrayOf(attr))
         val color = ta.getColor(0, 0); ta.recycle(); return color
     }
+
+    private fun string(resId: Int, vararg args: Any): String =
+        getString(resId, *args)
 
     private fun prefs() = getSharedPreferences("audiotext", MODE_PRIVATE)
 }
