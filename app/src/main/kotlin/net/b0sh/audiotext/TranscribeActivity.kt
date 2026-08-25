@@ -51,7 +51,7 @@ class TranscribeActivity : AppCompatActivity() {
         resultContainer = vertical(dp(16)).apply {
             background = ContextCompat.getDrawable(this@TranscribeActivity, android.R.drawable.editbox_dropdown_light_frame)
         }
-        
+
         progressIndicator = LinearProgressIndicator(this).apply {
             isIndeterminate = true
             visibility = View.VISIBLE
@@ -131,82 +131,31 @@ class TranscribeActivity : AppCompatActivity() {
                 return@thread
             }
 
-            runOnUiThread { 
+            runOnUiThread {
                 statusLabel.text = "Transcribing..."
-                resultText.text = "In progress..." 
+                resultText.text = "In progress..."
             }
 
-            val useLocal = prefs().getBoolean("use_local", true)
-            if (useLocal) {
-                val transcriber = TranscriberManager.getOrCreateTranscriber(this)
+            val transcriber = TranscriberManager.getOrCreateTranscriber(this)
 
-                if (transcriber != null) {
-                    val text = transcriber.transcribe(samples)
-                    handleTranscriptionResult(text)
-                } else {
-                    runOnUiThread {
-                        statusLabel.text = "Local model error"
-                        resultText.text = "Local model not ready. Check that a model is downloaded in the app settings."
-                        progressIndicator.visibility = View.GONE
-                    }
-                }
+            if (transcriber != null) {
+                val text = transcriber.transcribe(samples)
+                handleTranscriptionResult(text)
             } else {
-                // Cloud transcription
-                val pcm = ByteArray(samples.size * 2)
-                for (i in samples.indices) {
-                    val s = (samples[i] * 32767).toInt().coerceIn(-32768, 32767).toShort()
-                    pcm[i * 2] = (s.toInt() and 0xFF).toByte()
-                    pcm[i * 2 + 1] = (s.toInt() shr 8 and 0xFF).toByte()
-                }
-                val wav = WavWriter.encode(pcm)
-                val apiKey = prefs().getString("api_key", "") ?: ""
-
-                if (apiKey.isBlank()) {
-                    runOnUiThread {
-                        statusLabel.text = "Configuration error"
-                        resultText.text = "OpenAI API Key missing. Please set it in the app settings."
-                        progressIndicator.visibility = View.GONE
-                    }
-                    return@thread
-                }
-
-                TranscriberClient.transcribe(wav, apiKey) { result ->
-                    runOnUiThread {
-                        if (result.text != null) handleTranscriptionResult(result.text)
-                        else {
-                            statusLabel.text = "API Error"
-                            resultText.text = result.error ?: "Unknown cloud error"
-                            progressIndicator.visibility = View.GONE
-                        }
-                    }
+                runOnUiThread {
+                    statusLabel.text = "Local model error"
+                    resultText.text = "Local model not ready. Check that a model is downloaded in the app settings."
+                    progressIndicator.visibility = View.GONE
                 }
             }
         }
     }
 
     private fun handleTranscriptionResult(text: String) {
-        val usePostProcessing = prefs().getBoolean("use_post_processing", false)
-        val apiKey = prefs().getString("api_key", "") ?: ""
-
-        if (usePostProcessing && apiKey.isNotBlank()) {
-            runOnUiThread { 
-                statusLabel.text = "Post-processing..."
-                resultText.text = "Cleaning up transcript..." 
-            }
-            val prompt = prefs().getString("post_processing_prompt", PostProcessor.DEFAULT_PROMPT) ?: PostProcessor.DEFAULT_PROMPT
-            PostProcessor.process(text, prompt, apiKey) { result ->
-                runOnUiThread {
-                    statusLabel.text = "Finished"
-                    resultText.text = result.text ?: text
-                    progressIndicator.visibility = View.GONE
-                }
-            }
-        } else {
-            runOnUiThread {
-                statusLabel.text = "Finished"
-                resultText.text = text
-                progressIndicator.visibility = View.GONE
-            }
+        runOnUiThread {
+            statusLabel.text = "Finished"
+            resultText.text = text
+            progressIndicator.visibility = View.GONE
         }
     }
 
@@ -215,11 +164,11 @@ class TranscribeActivity : AppCompatActivity() {
     }
 
     private fun dp(n: Int) = (n * resources.displayMetrics.density).toInt()
-    
+
     private fun attrColor(attr: Int): Int {
         val ta = obtainStyledAttributes(intArrayOf(attr))
         val color = ta.getColor(0, 0); ta.recycle(); return color
     }
-    
+
     private fun prefs() = getSharedPreferences("audiotext", MODE_PRIVATE)
 }

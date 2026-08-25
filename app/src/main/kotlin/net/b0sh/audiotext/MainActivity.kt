@@ -19,7 +19,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.progressindicator.LinearProgressIndicator
-import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.radiobutton.MaterialRadioButton
 import java.io.File
 import kotlin.concurrent.thread
@@ -28,21 +27,14 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var statusSubtitle: TextView
     private lateinit var modelContainer: LinearLayout
-    private lateinit var promptContainer: LinearLayout
 
     private val modelRows = mutableMapOf<String, ModelRowViews>()
-    private val promptRows = mutableMapOf<String, PromptRowViews>()
 
     private data class ModelRowViews(
         val radio: MaterialRadioButton,
         val progress: LinearProgressIndicator,
         val subtitle: TextView,
         val dlBtn: MaterialButton
-    )
-
-    private data class PromptRowViews(
-        val radio: MaterialRadioButton,
-        val subtitle: TextView
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,50 +55,11 @@ class MainActivity : AppCompatActivity() {
         statusSubtitle = statusRow.findViewWithTag("subtitle")
         root.addView(statusRow)
 
-        // --- Engine Section ---
-        root.addView(sectionHeader("Engine"))
-        
-        val isCloud = !prefs().getBoolean("use_local", true)
-        val cloudSwitch = MaterialSwitch(this).apply {
-            isChecked = isCloud
-            isClickable = false
-        }
-        root.addView(settingsRow("Use cloud transcription", "Requires OpenAI API key", cloudSwitch) {
-            val newCloud = !cloudSwitch.isChecked
-            prefs().edit().putBoolean("use_local", !newCloud).apply()
-            cloudSwitch.isChecked = newCloud
-            TranscriberManager.reset()
-            refresh()
-        })
-
         // Local Models section
         modelContainer = vertical(0)
         modelContainer.addView(sectionHeader("Local models"))
         for (m in MODEL_CATALOG) modelContainer.addView(buildModelRow(m))
         root.addView(modelContainer)
-
-        // --- Post-Processing Section ---
-        root.addView(sectionHeader("Post-Processing"))
-        
-        val isPostProcessing = prefs().getBoolean("use_post_processing", false)
-        val postProcessSwitch = MaterialSwitch(this).apply {
-            isChecked = isPostProcessing
-            isClickable = false
-        }
-        root.addView(settingsRow("Cleanup transcript", "Uses OpenAI Chat API to fix grammar", postProcessSwitch) {
-            val newVal = !postProcessSwitch.isChecked
-            prefs().edit().putBoolean("use_post_processing", newVal).apply()
-            postProcessSwitch.isChecked = newVal
-            refresh()
-        })
-
-        promptContainer = vertical(0)
-        for (preset in promptPresets()) promptContainer.addView(buildPromptRow(preset))
-        root.addView(promptContainer)
-
-        // --- Settings Section ---
-        root.addView(sectionHeader("Settings"))
-        root.addView(settingsRow("OpenAI API Key", "Tap to set") { promptApiKey() })
 
         setContentView(ScrollView(this).apply {
             setBackgroundColor(attrColor(android.R.attr.colorBackground))
@@ -215,22 +168,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun buildPromptRow(preset: PromptPreset): View {
-        val radio = MaterialRadioButton(this).apply { isClickable = false }
-        val row = settingsRow(preset.title, preset.subtitle, radio) {
-            prefs().edit().putString("post_processing_prompt", preset.prompt).apply()
-            refresh()
-        }
-        promptRows[preset.key] = PromptRowViews(radio, row.findViewWithTag("subtitle"))
-        return row
-    }
-
     private fun refresh() {
-        val useLocal = prefs().getBoolean("use_local", true)
-        val usePostProcessing = prefs().getBoolean("use_post_processing", false)
-        modelContainer.visibility = if (useLocal) View.VISIBLE else View.GONE
-        promptContainer.visibility = if (usePostProcessing) View.VISIBLE else View.GONE
-        
         val activeModel = prefs().getString("model_name", "")
         MODEL_CATALOG.forEach { m ->
             val views = modelRows[m.archive] ?: return@forEach
@@ -239,18 +177,6 @@ class MainActivity : AppCompatActivity() {
             views.radio.visibility = if (installed) View.VISIBLE else View.GONE
             views.dlBtn.visibility = if (installed) View.GONE else View.VISIBLE
         }
-        
-        val currentPrompt = prefs().getString("post_processing_prompt", PostProcessor.DEFAULT_PROMPT)
-        promptPresets().forEach { p ->
-            promptRows[p.key]?.radio?.isChecked = currentPrompt == p.prompt
-        }
-    }
-
-    private fun promptApiKey() {
-        val input = EditText(this).apply { setText(prefs().getString("api_key", "")) }
-        android.app.AlertDialog.Builder(this).setTitle("OpenAI API Key").setView(input).setPositiveButton("Save") { _, _ ->
-            prefs().edit().putString("api_key", input.text.toString().trim()).apply(); refresh()
-        }.show()
     }
 
     private fun settingsRow(title: String, subtitle: String, widget: View? = null, onClick: (() -> Unit)? = null) = LinearLayout(this).apply {
@@ -285,10 +211,4 @@ class MainActivity : AppCompatActivity() {
         val color = ta.getColor(0, 0); ta.recycle(); return color
     }
     private fun prefs() = getSharedPreferences("audiotext", MODE_PRIVATE)
-    
-    private data class PromptPreset(val key: String, val title: String, val subtitle: String, val prompt: String)
-    private fun promptPresets() = listOf(
-        PromptPreset("dev", "Dev cleanup", "Best for coding", PostProcessor.DEV_PROMPT),
-        PromptPreset("simple", "Simple cleanup", "Grammar & punctuation", PostProcessor.SIMPLE_PROMPT)
-    )
 }

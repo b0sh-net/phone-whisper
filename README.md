@@ -1,20 +1,22 @@
 <p align="center">
-  <img src="docs/logo.svg" width="128" height="128" alt="Phone Whisper Logo">
+  <img src="docs/logo.svg" width="128" height="128" alt="Audio To Text Logo">
 </p>
 
-# Phone Whisper
+# Audio To Text
 
-Phone Whisper is an Android utility to transcribe audio files via the "Share" menu.
+Audio To Text is an Android utility to transcribe audio files via the "Share" menu.
 
 > **Note**: This project is a fork of [https://github.com/kafkasl/phone-whisper](https://github.com/kafkasl/phone-whisper). While the original project provided push-to-talk dictation via an Accessibility Service, this fork repurposes the tool specifically for **transcribing shared audio files**.
 
 It supports:
 
 - **Local on-device transcription** with sherpa-onnx
-- **Cloud transcription** with OpenAI Whisper
-- **Optional cleanup** with OpenAI to fix punctuation and grammar
 
 ## Changelog
+
+### Unreleased (2026-08-25)
+- **Removed OpenAI integration**: cloud transcription and post-processing have been removed. The app now only supports local on-device transcription with downloaded sherpa-onnx models.
+- **Rebrand**: app renamed to **Audio To Text**, package moved to `net.b0sh.audiotext`.
 
 ### v0.5.0 (2026-04-20)
 - **Separated Transcription UI from Settings**: Created a dedicated `TranscribeActivity` for audio transcription, launched automatically when sharing an audio file via the "Share" menu.
@@ -37,7 +39,7 @@ It supports:
 
 1. Select an audio file (MP3, M4A, WAV, etc.) in any Android app (e.g., File Manager, Voice Recorder).
 2. Tap the **Share** button.
-3. Select **Phone Whisper**.
+3. Select **Audio To Text**.
 4. The app opens, automatically decodes the audio, and performs transcription.
 5. The result is displayed on screen, ready to be copied to the clipboard.
 
@@ -60,19 +62,12 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Setup
 
-1. Open **Phone Whisper**.
-2. If using **Cloud** transcription, paste your OpenAI API key in the settings.
-3. If using **Local** transcription, download a model from the catalog within the app.
+1. Open **Audio To Text**.
+2. Download a model from the catalog within the app.
 
 ## Privacy
 
-Phone Whisper supports two modes:
-
-- **Local mode**: audio stays on-device
-- **Cloud mode**: audio is sent directly from your device to OpenAI's transcription API
-- **Optional cleanup**: transcript text is sent directly from your device to OpenAI's chat API
-
-I don't run a backend for this app. In cloud mode, requests go straight from your phone to OpenAI using your own API key.
+Audio To Text works fully offline: audio and transcriptions stay on your device. The only network activity is downloading models from the sherpa-onnx release archives inside the app.
 
 Full policy: [PRIVACY.md](PRIVACY.md)
 
