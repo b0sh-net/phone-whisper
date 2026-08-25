@@ -27,6 +27,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var statusSubtitle: TextView
     private lateinit var modelContainer: LinearLayout
+    private lateinit var infoSection: TextView
+    private var downloading = false
 
     private val modelRows = mutableMapOf<String, ModelRowViews>()
 
@@ -49,6 +51,14 @@ class MainActivity : AppCompatActivity() {
             setPadding(dp(24), dp(64), dp(24), dp(24))
         }
         root.addView(header)
+
+        // Informational section with variable content based on model state
+        infoSection = TextView(this).apply {
+            textSize = 14f
+            setPadding(dp(24), 0, dp(24), dp(16))
+            setTextColor(attrColor(android.R.attr.textColorSecondary))
+        }
+        root.addView(infoSection)
 
         // Status row
         val statusRow = settingsRow("Status", "Ready")
@@ -123,6 +133,8 @@ class MainActivity : AppCompatActivity() {
         views.progress.visibility = View.VISIBLE
         views.progress.isIndeterminate = false
         views.subtitle.text = "Downloading… 0%"
+        downloading = true
+        refresh()
         ModelDownloader.download(this, model) { state ->
             runOnUiThread {
                 when (state) {
@@ -139,6 +151,8 @@ class MainActivity : AppCompatActivity() {
                         statusSubtitle.text = "Installing model: ${model.name}"
                     }
                     is DownloadState.Done -> {
+                        downloading = false
+                        updateInfoSection()
                         views.progress.isIndeterminate = false
                         views.progress.visibility = View.GONE
                         views.subtitle.text = "Installed"
@@ -157,11 +171,13 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     is DownloadState.Error -> {
+                        downloading = false
                         views.progress.isIndeterminate = false
                         views.progress.visibility = View.GONE
                         views.subtitle.text = "${model.quality} · ${model.sizeMb} MB"
                         views.dlBtn.isEnabled = true
                         statusSubtitle.text = "Download failed: ${state.message}"
+                        updateInfoSection()
                     }
                 }
             }
@@ -176,6 +192,18 @@ class MainActivity : AppCompatActivity() {
             views.radio.isChecked = activeModel == m.archive
             views.radio.visibility = if (installed) View.VISIBLE else View.GONE
             views.dlBtn.visibility = if (installed) View.GONE else View.VISIBLE
+        }
+        updateInfoSection()
+    }
+
+    private fun updateInfoSection() {
+        infoSection.text = when {
+            downloading ->
+                "Wait for the model download and installation to complete without closing the application."
+            MODEL_CATALOG.any { ModelDownloader.isInstalled(this, it) } ->
+                "Use the Share function by selecting Audio To Text as the sharing destination. Transcription will start immediately."
+            else ->
+                "Select the model to use for transcribing your audio. Parakeet 0.6B is the recommended model for transcribing audio in various languages."
         }
     }
 
