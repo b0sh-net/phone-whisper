@@ -14,9 +14,10 @@ It supports:
 
 ## Changelog
 
-### Unreleased (2026-08-25)
+### v0.6.0 (2026-08-25)
 - **Removed OpenAI integration**: cloud transcription and post-processing have been removed. The app now only supports local on-device transcription with downloaded sherpa-onnx models.
 - **Rebrand**: app renamed to **Audio To Text**, package moved to `net.b0sh.audiotext`.
+- **Version bump**: 0.5.0 -> 0.6.0 (versionCode 7).
 
 ### v0.5.0 (2026-04-20)
 - **Separated Transcription UI from Settings**: Created a dedicated `TranscribeActivity` for audio transcription, launched automatically when sharing an audio file via the "Share" menu.
