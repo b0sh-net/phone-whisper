@@ -14,6 +14,10 @@ It supports:
 
 ## Changelog
 
+### v0.6.1 (2026-08-25)
+- **Multilingual UI**: the app now supports English and Italian, following the device language. The app name (Audio To Text) and model names are not translated.
+- **Version bump**: 0.6.0 -> 0.6.1 (versionCode 8).
+
 ### v0.6.0 (2026-08-25)
 - **Removed OpenAI integration**: cloud transcription and post-processing have been removed. The app now only supports local on-device transcription with downloaded sherpa-onnx models.
 - **Rebrand**: app renamed to **Audio To Text**, package moved to `net.b0sh.audiotext`.
