@@ -11,8 +11,8 @@ android {
         applicationId = "net.b0sh.audiotext"
         minSdk = 30
         targetSdk = 34
-        versionCode = 6
-        versionName = "0.5.0"
+        versionCode = 7
+        versionName = "0.6.0"
 
         ndk { abiFilters += "arm64-v8a" }
     }
