@@ -40,6 +40,46 @@ class ModelDownloaderTest {
         }
     }
 
+    @Test fun `extract calls onProgress after each file`() {
+        withTempDir { tmp ->
+            val archive = File(tmp, "test.tar.bz2")
+            val outDir = File(tmp, "out")
+            writeTarBz2(archive, mapOf(
+                "mymodel/tokens.txt" to "hello\nworld",
+                "mymodel/encoder.onnx" to "fake-onnx-data",
+                "mymodel/decoder.onnx" to "fake-onnx-data-2",
+            ))
+
+            val progress = mutableListOf<Pair<Int, String>>()
+            ModelDownloader.extractTarBz2(archive, outDir) { filesDone, current ->
+                progress += filesDone to current
+            }
+
+            val fileNames = progress.map { it.second }
+            assertTrue(fileNames.contains("tokens.txt"))
+            assertTrue(fileNames.contains("encoder.onnx"))
+            assertTrue(fileNames.contains("decoder.onnx"))
+            assertEquals(3, progress.last().first)
+        }
+    }
+
+    @Test fun `extract reports completed files even with dirs`() {
+        withTempDir { tmp ->
+            val archive = File(tmp, "test.tar.bz2")
+            val outDir = File(tmp, "out")
+            writeTarBz2(archive, mapOf(
+                "mymodel/tokens.txt" to "hello\nworld",
+                "mymodel/encoder.onnx" to "fake-onnx-data",
+            ))
+
+            var lastDone = -1
+            ModelDownloader.extractTarBz2(archive, outDir) { filesDone, _ ->
+                lastDone = filesDone
+            }
+            assertEquals(2, lastDone)
+        }
+    }
+
     @Test fun `catalog has expected structure`() {
         assertEquals(4, MODEL_CATALOG.size)
         assertTrue(MODEL_CATALOG.any { it.recommended })

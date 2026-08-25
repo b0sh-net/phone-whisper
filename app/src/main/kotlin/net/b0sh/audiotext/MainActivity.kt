@@ -168,13 +168,27 @@ class MainActivity : AppCompatActivity() {
         val views = modelRows[model.archive] ?: return
         views.dlBtn.isEnabled = false
         views.progress.visibility = View.VISIBLE
+        views.progress.isIndeterminate = false
+        views.subtitle.text = "Downloading… 0%"
         ModelDownloader.download(this, model) { state ->
             runOnUiThread {
                 when (state) {
-                    is DownloadState.Downloading -> views.progress.progress = (state.progress * 100).toInt()
-                    is DownloadState.Extracting -> views.progress.isIndeterminate = true
+                    is DownloadState.Downloading -> {
+                        views.progress.progress = (state.progress * 100).toInt()
+                        views.subtitle.text = "Downloading… ${(state.progress * 100).toInt()}%"
+                    }
+                    is DownloadState.Extracting -> {
+                        views.progress.isIndeterminate = true
+                        views.subtitle.text = if (state.currentFile.isBlank())
+                            "Installing model…"
+                        else
+                            "Installing: ${state.currentFile}"
+                        statusSubtitle.text = "Installing model: ${model.name}"
+                    }
                     is DownloadState.Done -> {
+                        views.progress.isIndeterminate = false
                         views.progress.visibility = View.GONE
+                        views.subtitle.text = "Installed"
                         statusSubtitle.text = "Model installed: ${model.name}"
                         prefs().edit().putString("model_name", model.archive).apply()
                         TranscriberManager.reset()
@@ -190,9 +204,11 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     is DownloadState.Error -> {
+                        views.progress.isIndeterminate = false
                         views.progress.visibility = View.GONE
+                        views.subtitle.text = "${model.quality} · ${model.sizeMb} MB"
                         views.dlBtn.isEnabled = true
-                        statusSubtitle.text = "Download failed"
+                        statusSubtitle.text = "Download failed: ${state.message}"
                     }
                 }
             }

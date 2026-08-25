@@ -29,7 +29,7 @@ val MODEL_CATALOG = listOf(
 
 sealed class DownloadState {
     data class Downloading(val progress: Float) : DownloadState()
-    object Extracting : DownloadState()
+    data class Extracting(val filesDone: Int, val currentFile: String) : DownloadState()
     object Done : DownloadState()
     data class Error(val message: String) : DownloadState()
 }
@@ -64,14 +64,16 @@ object ModelDownloader {
         Thread {
             try {
                 downloadFile(url, tmpArchive, onState)
-                onState(DownloadState.Extracting)
+                onState(DownloadState.Extracting(0, ""))
                 
                 // Extract to a temporary directory first to ensure atomicity
                 val tmpExtractDir = File(ctx.cacheDir, "extract_${model.archive}")
                 tmpExtractDir.deleteRecursively()
                 tmpExtractDir.mkdirs()
                 
-                extractTarBz2(tmpArchive, tmpExtractDir)
+                extractTarBz2(tmpArchive, tmpExtractDir) { filesDone, current ->
+                    onState(DownloadState.Extracting(filesDone, current))
+                }
                 
                 // The archive usually contains a top-level directory. 
                 // We need to find the actual model content.
@@ -122,11 +124,17 @@ object ModelDownloader {
         }
     }
 
-    /** Extract tar.bz2 to outDir. Validates paths to prevent traversal. */
-    fun extractTarBz2(archive: File, outDir: File) {
+    /** Extract tar.bz2 to outDir. Validates paths to prevent traversal.
+     *  onProgress fires after each extracted file with (filesDone, entryName). */
+    fun extractTarBz2(
+        archive: File,
+        outDir: File,
+        onProgress: (filesDone: Int, currentFile: String) -> Unit = { _, _ -> }
+    ) {
         outDir.mkdirs()
         val bzIn = BZip2CompressorInputStream(BufferedInputStream(FileInputStream(archive)))
         TarArchiveInputStream(bzIn).use { tar ->
+            var filesDone = 0
             generateSequence { tar.nextEntry }.forEach { entry ->
                 val dest = File(outDir, entry.name)
                 require(dest.canonicalPath.startsWith(outDir.canonicalPath)) {
@@ -136,6 +144,8 @@ object ModelDownloader {
                 else {
                     dest.parentFile?.mkdirs()
                     FileOutputStream(dest).use { tar.copyTo(it) }
+                    filesDone++
+                    onProgress(filesDone, entry.name.substringAfterLast('/'))
                 }
             }
         }
