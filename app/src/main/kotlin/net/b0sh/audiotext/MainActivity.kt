@@ -1,4 +1,4 @@
-package com.kafkasl.phonewhisper
+package net.b0sh.audiotext
 
 import android.Manifest
 import android.content.ClipData
@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity() {
 
         // Top large header
         val header = TextView(this).apply {
-            text = "Phone Whisper"
+            text = "Audio To Text"
             textSize = 32f
             setPadding(dp(24), dp(64), dp(24), dp(24))
         }
@@ -268,7 +268,7 @@ class MainActivity : AppCompatActivity() {
         val ta = obtainStyledAttributes(intArrayOf(attr))
         val color = ta.getColor(0, 0); ta.recycle(); return color
     }
-    private fun prefs() = getSharedPreferences("phonewhisper", MODE_PRIVATE)
+    private fun prefs() = getSharedPreferences("audiotext", MODE_PRIVATE)
     
     private data class PromptPreset(val key: String, val title: String, val subtitle: String, val prompt: String)
     private fun promptPresets() = listOf(

@@ -1,4 +1,4 @@
-package com.kafkasl.phonewhisper
+package net.b0sh.audiotext
 
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType

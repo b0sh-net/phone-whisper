@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.PhoneWhisper" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.AudioToText" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Accent Colors -->
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryContainer">@color/primary_container</item>

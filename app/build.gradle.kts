@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.kafkasl.phonewhisper"
+    namespace = "net.b0sh.audiotext"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.kafkasl.phonewhisper"
+        applicationId = "net.b0sh.audiotext"
         minSdk = 30
         targetSdk = 34
         versionCode = 6

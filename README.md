@@ -81,7 +81,7 @@ Full policy: [PRIVACY.md](PRIVACY.md)
 Models are stored in app storage under:
 
 ```bash
-/data/data/com.kafkasl.phonewhisper/files/models/
+/data/data/net.b0sh.audiotext/files/models/
 ```
 
 The app downloads and extracts models directly from the sherpa-onnx release archives.

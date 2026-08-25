@@ -1,4 +1,4 @@
-package com.kafkasl.phonewhisper
+package net.b0sh.audiotext
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

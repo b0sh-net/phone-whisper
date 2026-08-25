@@ -9,7 +9,7 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
-        android:theme="@style/Theme.PhoneWhisper">
+        android:theme="@style/Theme.AudioToText">
 
         <activity
             android:name=".MainActivity"
@@ -24,7 +24,7 @@
         <activity
             android:name=".TranscribeActivity"
             android:exported="true"
-            android:label="Phone Whisper: Transcribe"
+            android:label="Audio To Text: Transcribe"
             android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

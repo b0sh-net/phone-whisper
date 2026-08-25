@@ -1,4 +1,4 @@
-package com.kafkasl.phonewhisper
+package net.b0sh.audiotext
 
 import android.content.Context
 import android.util.Log
@@ -16,7 +16,7 @@ object TranscriberManager {
         // If we already have one, just return it
         localTranscriber?.let { return it }
 
-        val prefs = ctx.getSharedPreferences("phonewhisper", Context.MODE_PRIVATE)
+        val prefs = ctx.getSharedPreferences("audiotext", Context.MODE_PRIVATE)
         
         // Check if the user's preferred model is installed
         val preferredModel = prefs.getString("model_name", "")
