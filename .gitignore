@@ -3,6 +3,7 @@ build/
 .kotlin/
 local.properties
 .env
+keystore.properties
 *.apk
 app/src/main/jniLibs/
 /build_jdk17.bat

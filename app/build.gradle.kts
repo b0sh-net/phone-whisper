@@ -3,18 +3,43 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+import java.util.Properties
+
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) {
+        keystorePropsFile.inputStream().use { load(it) }
+    }
+}
+
 android {
     namespace = "net.b0sh.audiotext"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "net.b0sh.audiotext"
         minSdk = 30
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 8
         versionName = "0.6.1"
 
         ndk { abiFilters += "arm64-v8a" }
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file(keystoreProps["storeFile"]?.toString() ?: "none")
+            storePassword = keystoreProps["storePassword"] as? String
+            keyAlias = keystoreProps["keyAlias"] as? String
+            keyPassword = keystoreProps["keyPassword"] as? String
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+        }
     }
 
     compileOptions {

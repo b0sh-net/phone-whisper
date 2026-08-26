@@ -10,5 +10,8 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">?android:attr/colorBackground</item>
         <item name="android:navigationBarColor">?android:attr/colorBackground</item>
+
+        <!-- Preserve legacy (non-edge-to-edge) behavior on Android 15 (API 35) -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
     </style>
 </resources>
