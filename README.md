@@ -8,11 +8,17 @@ Audio To Text is an Android utility to transcribe audio files via the "Share" me
 
 > **Note**: This project is a fork of [https://github.com/kafkasl/phone-whisper](https://github.com/kafkasl/phone-whisper). While the original project provided push-to-talk dictation via an Accessibility Service, this fork repurposes the tool specifically for **transcribing shared audio files**.
 
+> 🧪 **Public testing on Google Play**: Audio To Text is now available on Google Play and is **looking for testers**. Try it at [https://play.google.com/store/apps/details?id=net.b0sh.audiotext](https://play.google.com/store/apps/details?id=net.b0sh.audiotext) — if you'd like to join the **closed testing** track, contact **audiototext@b0sh.net**.
+
 It supports:
 
 - **Local on-device transcription** with sherpa-onnx
 
 ## Changelog
+
+### v0.6.3 (2026-08-27)
+- **Google Play closed testing**: the app is now available for testing on Google Play (https://play.google.com/store/apps/details?id=net.b0sh.audiotext). Looking for testers — if you'd like to join the closed testing track, contact **audiototext@b0sh.net**.
+- **Version bump**: 0.6.2 -> 0.6.3 (versionCode 10).
 
 ### v0.6.1 (2026-08-25)
 - **Multilingual UI**: the app now supports English and Italian, following the device language. The app name (Audio To Text) and model names are not translated.
