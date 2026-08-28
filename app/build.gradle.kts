@@ -14,14 +14,14 @@ val keystoreProps = Properties().apply {
 
 android {
     namespace = "net.b0sh.audiotext"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "net.b0sh.audiotext"
         minSdk = 30
-        targetSdk = 35
-        versionCode = 10
-        versionName = "0.6.3"
+        targetSdk = 36
+        versionCode = 11
+        versionName = "0.6.4"
 
         ndk { abiFilters += "arm64-v8a" }
     }

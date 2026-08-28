@@ -16,6 +16,10 @@ It supports:
 
 ## Changelog
 
+### v0.6.4 (2026-08-28)
+- **Target SDK 36 (Android 16)**: compileSdk and targetSdk updated to 36.
+- **Version bump**: 0.6.3 -> 0.6.4 (versionCode 11).
+
 ### v0.6.3 (2026-08-27)
 - **Google Play closed testing**: the app is now available for testing on Google Play (https://play.google.com/store/apps/details?id=net.b0sh.audiotext). Looking for testers — join the testers Google Group at https://groups.google.com/g/testers-community.
 - **Version bump**: 0.6.2 -> 0.6.3 (versionCode 10).
