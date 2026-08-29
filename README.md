@@ -16,6 +16,10 @@ It supports:
 
 ## Changelog
 
+### v0.7.0 (2026-08-29)
+- **Google Play closed testing**: after successful internal testing, this version is being promoted to the closed testing track.
+- **Version bump**: 0.6.6 -> 0.7.0 (versionCode 14).
+
 ### v0.6.6 (2026-08-29)
 - **UI fixes**: the "More info" button on the main screen now uses the same outlined style and margins as the "Close" button of the About screen; the About screen title was lowered to avoid overlapping the system status bar; the transcription result box now uses the dark frame in dark mode, fixing text/background contrast.
 - **Version bump**: 0.6.5 -> 0.6.6 (versionCode 13).
