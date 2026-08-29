@@ -16,6 +16,10 @@ It supports:
 
 ## Changelog
 
+### v0.6.5 (2026-08-29)
+- **About screen**: added a "More info" button on the main screen leading to a new screen with a general description of the project (a personal experiment, published as open source), a link to the GitHub repository (https://github.com/b0sh-net/phone-whisper), and a note that the Issues feature can be used to report problems or get information. The screen states that, being developed in spare time and without profit, no minimum level of support is guaranteed.
+- **Version bump**: 0.6.4 -> 0.6.5 (versionCode 12).
+
 ### v0.6.4 (2026-08-28)
 - **Target SDK 36 (Android 16)**: compileSdk and targetSdk updated to 36.
 - **Version bump**: 0.6.3 -> 0.6.4 (versionCode 11).
