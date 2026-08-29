@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
@@ -49,7 +50,11 @@ class TranscribeActivity : AppCompatActivity() {
 
         // Result Container
         resultContainer = vertical(dp(16)).apply {
-            background = ContextCompat.getDrawable(this@TranscribeActivity, android.R.drawable.editbox_dropdown_light_frame)
+            val isNight = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            background = ContextCompat.getDrawable(
+                this@TranscribeActivity,
+                if (isNight) android.R.drawable.editbox_dropdown_dark_frame else android.R.drawable.editbox_dropdown_light_frame
+            )
         }
 
         progressIndicator = LinearProgressIndicator(this).apply {

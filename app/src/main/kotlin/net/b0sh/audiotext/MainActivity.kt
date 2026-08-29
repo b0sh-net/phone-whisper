@@ -72,9 +72,13 @@ class MainActivity : AppCompatActivity() {
         root.addView(modelContainer)
 
         // About button
-        root.addView(MaterialButton(this).apply {
+        root.addView(MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = string(R.string.about_button)
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) }
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply {
+                topMargin = dp(16)
+                leftMargin = dp(24)
+                rightMargin = dp(24)
+            }
             setOnClickListener { startActivity(Intent(this@MainActivity, AboutActivity::class.java)) }
         })
 

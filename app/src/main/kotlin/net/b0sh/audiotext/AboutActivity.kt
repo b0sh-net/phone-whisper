@@ -15,7 +15,7 @@ class AboutActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val root = vertical(dp(24), dp(32))
+        val root = vertical(dp(24)).apply { setPadding(dp(24), dp(48), dp(24), dp(32)) }
 
         val header = TextView(this).apply {
             text = string(R.string.about_title)
