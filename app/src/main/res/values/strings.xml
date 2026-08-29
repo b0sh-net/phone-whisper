@@ -32,6 +32,14 @@
     <string name="quality_fast">★★☆ Fast</string>
     <string name="model_size_mb">%1$s · %2$d MB</string>
 
+    <!-- About activity -->
+    <string name="about_button">More info</string>
+    <string name="about_title">More info</string>
+    <string name="about_intro">Audio To Text is a personal project born as an experiment. Since it turned out to be useful, I decided to share it and publish it as an open source project.</string>
+    <string name="about_source_code">The project is open source: the source code is available on &lt;a href="https://github.com/b0sh-net/phone-whisper"&gt;GitHub&lt;/a&gt;.</string>
+    <string name="about_issues">For any problem, feedback or information you can use the &lt;a href="https://github.com/b0sh-net/phone-whisper/issues"&gt;Issues&lt;/a&gt; feature of the repository.</string>
+    <string name="about_support">This application is developed in my spare time and without any profit purpose: no minimum level of support is guaranteed.</string>
+
     <!-- Transcribe activity -->
     <string name="transcribe_activity_label">Audio To Text: Transcribe</string>
     <string name="title_transcribing">Transcribing Audio</string>

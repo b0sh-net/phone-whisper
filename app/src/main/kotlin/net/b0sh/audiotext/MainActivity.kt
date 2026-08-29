@@ -71,6 +71,13 @@ class MainActivity : AppCompatActivity() {
         for (m in MODEL_CATALOG) modelContainer.addView(buildModelRow(m))
         root.addView(modelContainer)
 
+        // About button
+        root.addView(MaterialButton(this).apply {
+            text = string(R.string.about_button)
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) }
+            setOnClickListener { startActivity(Intent(this@MainActivity, AboutActivity::class.java)) }
+        })
+
         setContentView(ScrollView(this).apply {
             setBackgroundColor(attrColor(android.R.attr.colorBackground))
             addView(root)
