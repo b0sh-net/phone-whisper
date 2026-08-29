@@ -16,6 +16,10 @@ It supports:
 
 ## Changelog
 
+### v0.6.6 (2026-08-29)
+- **UI fixes**: the "More info" button on the main screen now uses the same outlined style and margins as the "Close" button of the About screen; the About screen title was lowered to avoid overlapping the system status bar; the transcription result box now uses the dark frame in dark mode, fixing text/background contrast.
+- **Version bump**: 0.6.5 -> 0.6.6 (versionCode 13).
+
 ### v0.6.5 (2026-08-29)
 - **About screen**: added a "More info" button on the main screen leading to a new screen with a general description of the project (a personal experiment, published as open source), a link to the GitHub repository (https://github.com/b0sh-net/phone-whisper), and a note that the Issues feature can be used to report problems or get information. The screen states that, being developed in spare time and without profit, no minimum level of support is guaranteed.
 - **Version bump**: 0.6.4 -> 0.6.5 (versionCode 12).
