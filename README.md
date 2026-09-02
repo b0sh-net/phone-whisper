@@ -16,6 +16,11 @@ It supports:
 
 ## Changelog
 
+### v0.8.0 (2026-09-02)
+- **Remove downloaded models**: installed models can now be removed from the catalog, freeing device space. The model can always be downloaded again.
+- **All architectures**: the app now ships with native libraries for all supported ABIs (arm64-v8a, armeabi-v7a, x86, x86_64) instead of arm64-only, extending device compatibility.
+- **Version bump**: 0.7.0 -> 0.8.0 (versionCode 15).
+
 ### v0.7.0 (2026-08-29)
 - **Google Play closed testing**: after successful internal testing, this version is being promoted to the closed testing track.
 - **Version bump**: 0.6.6 -> 0.7.0 (versionCode 14).
