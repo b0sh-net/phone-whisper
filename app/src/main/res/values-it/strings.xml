@@ -19,6 +19,12 @@
     <string name="subtitle_installing">Installazione del modello in corso…</string>
     <string name="subtitle_installing_file">Installazione: %1$s</string>
     <string name="subtitle_installed">Installato</string>
+    <string name="delete_model_title">Rimuovi modello</string>
+    <string name="delete_model_message">Rimuovere %1$s? Verranno liberati circa %2$d MB di spazio sul dispositivo. Il modello potrà essere scaricato di nuovo in qualsiasi momento.</string>
+    <string name="action_delete">Elimina</string>
+    <string name="action_cancel">Annulla</string>
+    <string name="status_removing_model">Rimozione del modello: %1$s</string>
+    <string name="status_model_removed">Modello rimosso: %1$s</string>
 
     <!-- Info section (variable content based on model state) -->
     <string name="info_no_model">Seleziona il modello da utilizzare per la trascrizione degli audio. Parakeet 0.6B è il modello consigliato per trascrivere audio in varie lingue.</string>

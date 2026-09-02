@@ -19,6 +19,12 @@
     <string name="subtitle_installing">Installing model…</string>
     <string name="subtitle_installing_file">Installing: %1$s</string>
     <string name="subtitle_installed">Installed</string>
+    <string name="delete_model_title">Remove model</string>
+    <string name="delete_model_message">Remove %1$s? This will free about %2$d MB of device space. The model can be downloaded again at any time.</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="status_removing_model">Removing model: %1$s</string>
+    <string name="status_model_removed">Model removed: %1$s</string>
 
     <!-- Info section (variable content based on model state) -->
     <string name="info_no_model">Select the model to use for transcribing your audio. Parakeet 0.6B is the recommended model for transcribing audio in various languages.</string>

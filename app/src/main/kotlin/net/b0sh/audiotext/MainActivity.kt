@@ -18,6 +18,7 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.radiobutton.MaterialRadioButton
 import java.io.File
@@ -36,7 +37,8 @@ class MainActivity : AppCompatActivity() {
         val radio: MaterialRadioButton,
         val progress: LinearProgressIndicator,
         val subtitle: TextView,
-        val dlBtn: MaterialButton
+        val dlBtn: MaterialButton,
+        val delBtn: MaterialButton
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -113,16 +115,21 @@ class MainActivity : AppCompatActivity() {
     private fun buildModelRow(model: Model): View {
         val radio = MaterialRadioButton(this).apply { isClickable = false }
         val dlBtn = MaterialButton(this, null, com.google.android.material.R.attr.materialIconButtonStyle).apply { text = "↓" }
+        val delBtn = MaterialButton(this, null, com.google.android.material.R.attr.materialIconButtonStyle).apply {
+            text = "🗑"
+            visibility = View.GONE
+            setOnClickListener { onModelDelete(model) }
+        }
         val progress = LinearProgressIndicator(this).apply { visibility = View.GONE }
         val rightContainer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            addView(dlBtn); addView(radio)
+            addView(delBtn); addView(dlBtn); addView(radio)
         }
         val row = settingsRow(model.name, string(R.string.model_size_mb, string(model.qualityRes), model.sizeMb), rightContainer) { onModelAction(model) }
         val textContainer = row.getChildAt(0) as LinearLayout
         textContainer.addView(progress)
-        modelRows[model.archive] = ModelRowViews(radio, progress, textContainer.findViewWithTag("subtitle"), dlBtn)
+        modelRows[model.archive] = ModelRowViews(radio, progress, textContainer.findViewWithTag("subtitle"), dlBtn, delBtn)
         return row
     }
 
@@ -203,8 +210,38 @@ class MainActivity : AppCompatActivity() {
             views.radio.isChecked = activeModel == m.archive
             views.radio.visibility = if (installed) View.VISIBLE else View.GONE
             views.dlBtn.visibility = if (installed) View.GONE else View.VISIBLE
+            views.delBtn.visibility = if (installed) View.VISIBLE else View.GONE
         }
         updateInfoSection()
+    }
+
+    private fun onModelDelete(model: Model) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(string(R.string.delete_model_title))
+            .setMessage(string(R.string.delete_model_message, model.name, model.sizeMb))
+            .setPositiveButton(string(R.string.action_delete)) { _, _ -> deleteModel(model) }
+            .setNegativeButton(string(R.string.action_cancel), null)
+            .show()
+    }
+
+    private fun deleteModel(model: Model) {
+        val views = modelRows[model.archive] ?: return
+        val wasActive = prefs().getString("model_name", "") == model.archive
+        if (wasActive) {
+            prefs().edit().remove("model_name").apply()
+            TranscriberManager.reset()
+        }
+        views.delBtn.isEnabled = false
+        statusSubtitle.text = string(R.string.status_removing_model, model.name)
+        thread {
+            ModelDownloader.delete(this, model)
+            runOnUiThread {
+                views.delBtn.isEnabled = true
+                views.subtitle.text = string(R.string.model_size_mb, string(model.qualityRes), model.sizeMb)
+                statusSubtitle.text = string(R.string.status_model_removed, model.name)
+                refresh()
+            }
+        }
     }
 
     private fun updateInfoSection() {
