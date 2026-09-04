@@ -89,6 +89,12 @@ class MainActivity : AppCompatActivity() {
             addView(root)
         })
 
+        // Onboarding: proponi l'introduzione solo alla prima apertura.
+        if (IntroFlag.shouldShow(prefs())) {
+            startActivity(Intent(this, IntroActivity::class.java).putExtra(IntroActivity.EXTRA_ORIGIN, IntroActivity.ORIGIN_FIRST_OPEN))
+            IntroFlag.markShown(prefs())
+        }
+
         // Load model in background if needed
         thread { initLocalModel() }
 

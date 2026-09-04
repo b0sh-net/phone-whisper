@@ -1,5 +1,6 @@
 package net.b0sh.audiotext
 
+import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.Html
@@ -29,6 +30,16 @@ class AboutActivity : AppCompatActivity() {
         root.addView(paragraph(R.string.about_source_code))
         root.addView(paragraph(R.string.about_issues))
         root.addView(paragraph(R.string.about_support))
+
+        val reviewBtn = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = string(R.string.intro_review_button)
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) }
+            setOnClickListener {
+                startActivity(Intent(this@AboutActivity, IntroActivity::class.java)
+                    .putExtra(IntroActivity.EXTRA_ORIGIN, IntroActivity.ORIGIN_MANUAL))
+            }
+        }
+        root.addView(reviewBtn)
 
         val closeBtn = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = string(R.string.action_close)

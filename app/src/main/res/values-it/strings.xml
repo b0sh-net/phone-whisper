@@ -38,6 +38,10 @@
     <string name="quality_fast">★★☆ Veloce</string>
     <string name="model_size_mb">%1$s · %2$d MB</string>
 
+    <!-- Intro (onboarding) activity -->
+    <string name="intro_title">Audio To Text: Come funziona</string>
+    <string name="intro_review_button">Rivedi introduzione</string>
+
     <!-- About activity -->
     <string name="about_button">Maggiori informazioni</string>
     <string name="about_title">Maggiori informazioni</string>

@@ -27,6 +27,11 @@
             android:label="@string/about_title" />
 
         <activity
+            android:name=".IntroActivity"
+            android:exported="false"
+            android:label="@string/intro_title" />
+
+        <activity
             android:name=".TranscribeActivity"
             android:exported="true"
             android:label="@string/transcribe_activity_label"

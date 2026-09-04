@@ -16,6 +16,10 @@ It supports:
 
 ## Changelog
 
+### v0.9.0 (2026-09-04)
+- **Onboarding guide**: on first launch, the app shows a short introduction with three swipeable screens illustrated by `icon-graphics/intro-{1,2,3}.png`: how to download the model, to wait for the download and installation, and how to transcribe a message. The intro can be reviewed anytime via a button in the "More info" screen. Images are localized per supported language (English and Italian).
+- **Version bump**: 0.8.1 -> 0.9.0 (versionCode 17).
+
 ### v0.8.1 (2026-09-02)
 - **Google Play closed testing**: after successful internal testing of v0.8.0, this version is being promoted to the closed testing track.
 - **Version bump**: 0.8.0 -> 0.8.1 (versionCode 16).
