@@ -20,8 +20,8 @@ android {
         applicationId = "net.b0sh.audiotext"
         minSdk = 30
         targetSdk = 36
-        versionCode = 17
-        versionName = "0.9.0"
+        versionCode = 18
+        versionName = "0.9.1"
     }
 
     signingConfigs {

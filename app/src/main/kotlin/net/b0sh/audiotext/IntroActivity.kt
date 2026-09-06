@@ -3,9 +3,9 @@ package net.b0sh.audiotext
 import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
-import android.util.TypedValue
 import android.view.Gravity
-import android.view.View
+import android.view.MotionEvent
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -42,10 +42,7 @@ class IntroActivity : AppCompatActivity() {
         }
         root.addView(header)
 
-        // Carousel orizzontale: le tre immagini affiancate in uno ScrollView con snap a pagina.
-        val pages = ScrollView(this).apply {
-            isFillViewport = false
-        }
+        // Carousel orizzontale: le tre immagini affiancate in uno HorizontalScrollView con snap a pagina.
         val strip = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -59,15 +56,28 @@ class IntroActivity : AppCompatActivity() {
                 setMaxWidth(maxImgW)
             })
         }
-        pages.addView(strip)
-        root.addView(pages)
 
-        // Indicatore di pagina (stile punti).
+        // Indicatore di pagina (stile punti), aggiornato durante lo scorrimento.
         val dots = TextView(this).apply {
-            text = "● ○ ○"
             textSize = 12f
             setPadding(0, dp(8), 0, 0)
         }
+
+        val pages = HorizontalScrollView(this).apply {
+            addView(strip)
+            setOnTouchListener { _, event ->
+                // Aggiorna i punti durante il trascinamento e aggancia alla pagina più vicina al rilascio.
+                if (event.actionMasked == MotionEvent.ACTION_MOVE || event.actionMasked == MotionEvent.ACTION_UP) {
+                    updateDots(dots, strip, activePage(this, strip))
+                }
+                if (event.actionMasked == MotionEvent.ACTION_UP) {
+                    smoothScrollTo(strip.getChildAt(activePage(this, strip)).left, 0)
+                }
+                false
+            }
+        }
+        updateDots(dots, strip, 0)
+        root.addView(pages)
         root.addView(dots)
 
         val closeBtn = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
@@ -86,6 +96,19 @@ class IntroActivity : AppCompatActivity() {
     /** Lingua attiva del dispositivo, da cui deriva il set di immagini. */
     private fun locale() =
         resources.configuration.getLocales().get(0)
+
+    /** Indice (0-based) dell'immagine più vicina al centro della viewport. */
+    private fun activePage(hsv: HorizontalScrollView, strip: LinearLayout): Int {
+        if (strip.childCount == 0) return 0
+        val centerX = hsv.scrollX + hsv.width / 2
+        return (0 until strip.childCount)
+            .minByOrNull { Math.abs(centerX - (strip.getChildAt(it).left + strip.getChildAt(it).width / 2)) } ?: 0
+    }
+
+    /** Aggiorna l'indicatore di pagina (● = attiva, ○ = altre). */
+    private fun updateDots(dots: TextView, strip: LinearLayout, active: Int) {
+        dots.text = (0 until strip.childCount).joinToString(" ") { if (it == active) "●" else "○" }
+    }
 
     private fun vertical(padH: Int, padV: Int = padH) = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL; setPadding(padH, padV, padH, padV)

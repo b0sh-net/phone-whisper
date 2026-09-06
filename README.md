@@ -16,6 +16,10 @@ It supports:
 
 ## Changelog
 
+### v0.9.1 (2026-09-06)
+- **Onboarding fix**: the introduction's three screens now scroll horizontally as intended — previously a vertical `ScrollView` showed only the first image with no way to advance. The carousel now uses an `HorizontalScrollView` with page snap on release and page indicators that update while swiping.
+- **Version bump**: 0.9.0 -> 0.9.1 (versionCode 18).
+
 ### v0.9.0 (2026-09-04)
 - **Onboarding guide**: on first launch, the app shows a short introduction with three swipeable screens illustrated by `icon-graphics/intro-{1,2,3}.png`: how to download the model, to wait for the download and installation, and how to transcribe a message. The intro can be reviewed anytime via a button in the "More info" screen. Images are localized per supported language (English and Italian).
 - **Version bump**: 0.8.1 -> 0.9.0 (versionCode 17).
