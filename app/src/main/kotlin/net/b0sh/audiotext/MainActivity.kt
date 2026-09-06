@@ -15,6 +15,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.widget.*
+import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
@@ -26,6 +27,7 @@ import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var statusIcon: ImageView
     private lateinit var statusSubtitle: TextView
     private lateinit var modelContainer: LinearLayout
     private lateinit var infoSection: TextView
@@ -63,7 +65,14 @@ class MainActivity : AppCompatActivity() {
         root.addView(infoSection)
 
         // Status row
-        val statusRow = settingsRow(string(R.string.status_label), string(R.string.status_ready))
+        statusIcon = ImageView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)).apply { rightMargin = dp(16) }
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setPadding(dp(6), dp(6), dp(6), dp(6))
+            setBackgroundResource(R.drawable.status_icon_bg)
+            setImageResource(R.drawable.status_ready)
+        }
+        val statusRow = settingsRow(string(R.string.status_label), string(R.string.status_ready), leading = statusIcon)
         statusSubtitle = statusRow.findViewWithTag("subtitle")
         root.addView(statusRow)
 
@@ -103,16 +112,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun initLocalModel(): Boolean {
         val modelName = prefs().getString("model_name", "")
-        runOnUiThread { statusSubtitle.text = string(R.string.status_initializing_model) }
+        runOnUiThread { setStatus(R.string.status_initializing_model) }
 
         val t = TranscriberManager.getOrCreateTranscriber(this)
         if (t != null) {
             val name = MODEL_CATALOG.find { it.archive == modelName }?.name ?: modelName ?: "Unknown"
-            runOnUiThread { statusSubtitle.text = string(R.string.status_local_model_ready, name) }
+            runOnUiThread { setStatus(R.string.status_local_model_ready, name) }
             return true
         }
 
-        runOnUiThread { statusSubtitle.text = string(R.string.status_no_local_model) }
+        runOnUiThread { setStatus(R.string.status_no_local_model) }
         return false
     }
 
@@ -146,7 +155,7 @@ class MainActivity : AppCompatActivity() {
             thread {
                 val success = initLocalModel()
                 runOnUiThread {
-                    if (success) statusSubtitle.text = string(R.string.status_active_model, model.name)
+                    if (success) setStatus(R.string.status_active_model, model.name)
                     refresh()
                 }
             }
@@ -172,7 +181,7 @@ class MainActivity : AppCompatActivity() {
                             string(R.string.subtitle_installing)
                         else
                             string(R.string.subtitle_installing_file, state.currentFile)
-                        statusSubtitle.text = string(R.string.status_installing_model, model.name)
+                        setStatus(R.string.status_installing_model, model.name)
                     }
                     is DownloadState.Done -> {
                         downloading = false
@@ -180,15 +189,15 @@ class MainActivity : AppCompatActivity() {
                         views.progress.isIndeterminate = false
                         views.progress.visibility = View.GONE
                         views.subtitle.text = string(R.string.subtitle_installed)
-                        statusSubtitle.text = string(R.string.status_model_installed, model.name)
+                        setStatus(R.string.status_model_installed, model.name)
                         prefs().edit().putString("model_name", model.archive).apply()
                         TranscriberManager.reset()
                         // Wait for model to actually load before refreshing UI
                         thread {
                             val success = initLocalModel()
                             runOnUiThread {
-                                if (success) statusSubtitle.text = string(R.string.status_model_ready, model.name)
-                                else statusSubtitle.text = string(R.string.status_model_load_failed)
+                                if (success) setStatus(R.string.status_model_ready, model.name)
+                                else setStatus(R.string.status_model_load_failed)
                                 refresh()
                             }
                         }
@@ -200,7 +209,7 @@ class MainActivity : AppCompatActivity() {
                         views.progress.visibility = View.GONE
                         views.subtitle.text = string(R.string.model_size_mb, string(model.qualityRes), model.sizeMb)
                         views.dlBtn.isEnabled = true
-                        statusSubtitle.text = string(R.string.status_download_failed, state.message)
+                        setStatus(R.string.status_download_failed, state.message)
                         updateInfoSection()
                     }
                 }
@@ -238,13 +247,13 @@ class MainActivity : AppCompatActivity() {
             TranscriberManager.reset()
         }
         views.delBtn.isEnabled = false
-        statusSubtitle.text = string(R.string.status_removing_model, model.name)
+        setStatus(R.string.status_removing_model, model.name)
         thread {
             ModelDownloader.delete(this, model)
             runOnUiThread {
                 views.delBtn.isEnabled = true
                 views.subtitle.text = string(R.string.model_size_mb, string(model.qualityRes), model.sizeMb)
-                statusSubtitle.text = string(R.string.status_model_removed, model.name)
+                setStatus(R.string.status_model_removed, model.name)
                 refresh()
             }
         }
@@ -258,7 +267,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun settingsRow(title: String, subtitle: String, widget: View? = null, onClick: (() -> Unit)? = null) = LinearLayout(this).apply {
+    private fun setStatus(@StringRes res: Int, vararg args: Any) {
+        statusSubtitle.text = string(res, *args)
+        statusIcon.setImageResource(statusDrawable(res))
+    }
+
+    private fun statusDrawable(@StringRes res: Int): Int = when (res) {
+        R.string.status_ready -> R.drawable.status_ready
+        R.string.status_initializing_model -> R.drawable.status_initializing_model
+        R.string.status_local_model_ready -> R.drawable.status_local_model_ready
+        R.string.status_no_local_model -> R.drawable.status_no_local_model
+        R.string.status_active_model -> R.drawable.status_active_model
+        R.string.status_installing_model -> R.drawable.status_installing_model
+        R.string.status_model_installed -> R.drawable.status_model_installed
+        R.string.status_model_ready -> R.drawable.status_model_ready
+        R.string.status_model_load_failed -> R.drawable.status_model_load_failed
+        R.string.status_download_failed -> R.drawable.status_download_failed
+        R.string.status_removing_model -> R.drawable.status_removing_model
+        R.string.status_model_removed -> R.drawable.status_model_removed
+        else -> R.drawable.status_ready
+    }
+
+    private fun settingsRow(title: String, subtitle: String, widget: View? = null, leading: View? = null, onClick: (() -> Unit)? = null) = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
         setPadding(dp(24), dp(16), dp(24), dp(16))
         if (onClick != null) {
@@ -267,6 +297,7 @@ class MainActivity : AppCompatActivity() {
             setBackgroundResource(outValue.resourceId)
             setOnClickListener { onClick() }
         }
+        if (leading != null) addView(leading)
         val textContainer = vertical(0).apply { layoutParams = LinearLayout.LayoutParams(0, -2, 1f) }
         textContainer.addView(TextView(this@MainActivity).apply { text = title; textSize = 18f })
         textContainer.addView(TextView(this@MainActivity).apply { tag = "subtitle"; text = subtitle; textSize = 14f })

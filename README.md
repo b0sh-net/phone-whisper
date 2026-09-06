@@ -16,6 +16,10 @@ It supports:
 
 ## Changelog
 
+### v0.9.2 (2026-09-06)
+- **Status panel icons**: the status panel on the main screen now shows an icon next to the status text. Each status (ready, initializing, installing, installed, removing, removed, load/download failed, etc.) has its own icon taken from the status icon set, and the icon switches automatically as the app state changes.
+- **Version bump**: 0.9.1 -> 0.9.2 (versionCode 19).
+
 ### v0.9.1 (2026-09-06)
 - **Onboarding fix**: the introduction's three screens now scroll horizontally as intended — previously a vertical `ScrollView` showed only the first image with no way to advance. The carousel now uses an `HorizontalScrollView` with page snap on release and page indicators that update while swiping.
 - **Version bump**: 0.9.0 -> 0.9.1 (versionCode 18).
