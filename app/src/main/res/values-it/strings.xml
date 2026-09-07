@@ -16,6 +16,7 @@
     <string name="status_model_load_failed">Caricamento del modello non riuscito</string>
     <string name="status_download_failed">Download non riuscito: %1$s</string>
     <string name="subtitle_downloading">Download in corso… %1$d%%</string>
+    <string name="subtitle_downloading_file">Download in corso… %1$d%% (%2$s)</string>
     <string name="subtitle_installing">Installazione del modello in corso…</string>
     <string name="subtitle_installing_file">Installazione: %1$s</string>
     <string name="subtitle_installed">Installato</string>

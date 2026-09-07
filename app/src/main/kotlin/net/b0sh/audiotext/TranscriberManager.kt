@@ -21,7 +21,7 @@ object TranscriberManager {
         // Check if the user's preferred model is installed
         val preferredModel = prefs.getString("model_name", "")
         if (!preferredModel.isNullOrBlank()) {
-            val installed = MODEL_CATALOG.find { it.archive == preferredModel }?.let {
+            val installed = MODEL_CATALOG.find { it.id == preferredModel }?.let {
                 ModelDownloader.isInstalled(ctx, it)
             } ?: false
             

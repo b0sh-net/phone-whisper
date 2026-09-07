@@ -16,6 +16,12 @@ It supports:
 
 ## Changelog
 
+### v0.9.3 (2026-09-07)
+- **Multi-source model downloads**: the model downloader no longer assumes a single global repository — each catalog entry now defines its own download source, so models hosted on different repositories can be added and downloaded.
+- **Uncompressed models**: the catalog supports models distributed as a plain list of files (no archive), downloaded individually into the model directory. The status panel shows the overall progress and the current file, without an extraction phase.
+- **New model — Kroko Italiano**: an Italian speech-to-text model (~154 MB) hosted on Hugging Face, downloaded as four uncompressed files.
+- **Version bump**: 0.9.2 -> 0.9.3 (versionCode 20).
+
 ### v0.9.2 (2026-09-06)
 - **Status panel icons**: the status panel on the main screen now shows an icon next to the status text. Each status (ready, initializing, installing, installed, removing, removed, load/download failed, etc.) has its own icon taken from the status icon set, and the icon switches automatically as the app state changes.
 - **Version bump**: 0.9.1 -> 0.9.2 (versionCode 19).

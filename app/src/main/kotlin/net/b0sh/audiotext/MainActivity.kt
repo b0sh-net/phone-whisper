@@ -116,7 +116,7 @@ class MainActivity : AppCompatActivity() {
 
         val t = TranscriberManager.getOrCreateTranscriber(this)
         if (t != null) {
-            val name = MODEL_CATALOG.find { it.archive == modelName }?.name ?: modelName ?: "Unknown"
+            val name = MODEL_CATALOG.find { it.id == modelName }?.name ?: modelName ?: "Unknown"
             runOnUiThread { setStatus(R.string.status_local_model_ready, name) }
             return true
         }
@@ -144,13 +144,13 @@ class MainActivity : AppCompatActivity() {
         val row = settingsRow(model.name, string(R.string.model_size_mb, string(model.qualityRes), model.sizeMb), rightContainer) { onModelAction(model) }
         val textContainer = row.getChildAt(0) as LinearLayout
         textContainer.addView(progress)
-        modelRows[model.archive] = ModelRowViews(radio, progress, textContainer.findViewWithTag("subtitle"), dlBtn, delBtn)
+        modelRows[model.id] = ModelRowViews(radio, progress, textContainer.findViewWithTag("subtitle"), dlBtn, delBtn)
         return row
     }
 
     private fun onModelAction(model: Model) {
         if (ModelDownloader.isInstalled(this, model)) {
-            prefs().edit().putString("model_name", model.archive).apply()
+            prefs().edit().putString("model_name", model.id).apply()
             TranscriberManager.reset()
             thread {
                 val success = initLocalModel()
@@ -161,7 +161,7 @@ class MainActivity : AppCompatActivity() {
             }
             return
         }
-        val views = modelRows[model.archive] ?: return
+        val views = modelRows[model.id] ?: return
         views.dlBtn.isEnabled = false
         views.progress.visibility = View.VISIBLE
         views.progress.isIndeterminate = false
@@ -173,7 +173,10 @@ class MainActivity : AppCompatActivity() {
                 when (state) {
                     is DownloadState.Downloading -> {
                         views.progress.progress = (state.progress * 100).toInt()
-                        views.subtitle.text = string(R.string.subtitle_downloading, (state.progress * 100).toInt())
+                        views.subtitle.text = if (state.currentFile.isNullOrBlank())
+                            string(R.string.subtitle_downloading, (state.progress * 100).toInt())
+                        else
+                            string(R.string.subtitle_downloading_file, (state.progress * 100).toInt(), state.currentFile)
                     }
                     is DownloadState.Extracting -> {
                         views.progress.isIndeterminate = true
@@ -190,7 +193,7 @@ class MainActivity : AppCompatActivity() {
                         views.progress.visibility = View.GONE
                         views.subtitle.text = string(R.string.subtitle_installed)
                         setStatus(R.string.status_model_installed, model.name)
-                        prefs().edit().putString("model_name", model.archive).apply()
+                        prefs().edit().putString("model_name", model.id).apply()
                         TranscriberManager.reset()
                         // Wait for model to actually load before refreshing UI
                         thread {
@@ -220,9 +223,9 @@ class MainActivity : AppCompatActivity() {
     private fun refresh() {
         val activeModel = prefs().getString("model_name", "")
         MODEL_CATALOG.forEach { m ->
-            val views = modelRows[m.archive] ?: return@forEach
+            val views = modelRows[m.id] ?: return@forEach
             val installed = ModelDownloader.isInstalled(this, m)
-            views.radio.isChecked = activeModel == m.archive
+            views.radio.isChecked = activeModel == m.id
             views.radio.visibility = if (installed) View.VISIBLE else View.GONE
             views.dlBtn.visibility = if (installed) View.GONE else View.VISIBLE
             views.delBtn.visibility = if (installed) View.VISIBLE else View.GONE
@@ -240,8 +243,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun deleteModel(model: Model) {
-        val views = modelRows[model.archive] ?: return
-        val wasActive = prefs().getString("model_name", "") == model.archive
+        val views = modelRows[model.id] ?: return
+        val wasActive = prefs().getString("model_name", "") == model.id
         if (wasActive) {
             prefs().edit().remove("model_name").apply()
             TranscriberManager.reset()

@@ -8,85 +8,167 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
 import java.io.*
 import java.util.concurrent.TimeUnit
 
+data class ModelFile(
+    val remotePath: String,
+    val localName: String,
+)
+
 data class Model(
+    val id: String,
     val name: String,
-    val archive: String,
+    val source: String,
     val sizeMb: Int,
     val qualityRes: Int,
     val recommended: Boolean = false,
+    val dirName: String = "",
+    val archive: String? = null,
+    val files: List<ModelFile> = emptyList(),
 )
 
+const val SHERPA_MODELS_SOURCE =
+    "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models"
+
 val MODEL_CATALOG = listOf(
-    Model("Parakeet 110M", "sherpa-onnx-nemo-parakeet_tdt_ctc_110m-en-36000-int8",
-        100, R.string.quality_best_value, recommended = true),
-    Model("Whisper Base", "sherpa-onnx-whisper-base.en",
-        199, R.string.quality_three),
-    Model("Parakeet 0.6B", "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
-        465, R.string.quality_best_quality),
-    Model("Moonshine Tiny", "sherpa-onnx-moonshine-tiny-en-int8",
-        103, R.string.quality_fast),
+    Model(
+        id = "sherpa-onnx-nemo-parakeet_tdt_ctc_110m-en-36000-int8",
+        name = "Parakeet 110M",
+        source = SHERPA_MODELS_SOURCE,
+        sizeMb = 100,
+        qualityRes = R.string.quality_best_value,
+        dirName = "sherpa-onnx-nemo-parakeet_tdt_ctc_110m-en-36000-int8",
+        archive = "sherpa-onnx-nemo-parakeet_tdt_ctc_110m-en-36000-int8",
+    ),
+    Model(
+        id = "sherpa-onnx-whisper-base.en",
+        name = "Whisper Base",
+        source = SHERPA_MODELS_SOURCE,
+        sizeMb = 199,
+        qualityRes = R.string.quality_three,
+        dirName = "sherpa-onnx-whisper-base.en",
+        archive = "sherpa-onnx-whisper-base.en",
+    ),
+    Model(
+        id = "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+        name = "Parakeet 0.6B",
+        source = SHERPA_MODELS_SOURCE,
+        sizeMb = 465,
+        qualityRes = R.string.quality_best_quality,
+        recommended = true,
+        dirName = "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+        archive = "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+    ),
+    Model(
+        id = "sherpa-onnx-moonshine-tiny-en-int8",
+        name = "Moonshine Tiny",
+        source = SHERPA_MODELS_SOURCE,
+        sizeMb = 103,
+        qualityRes = R.string.quality_fast,
+        dirName = "sherpa-onnx-moonshine-tiny-en-int8",
+        archive = "sherpa-onnx-moonshine-tiny-en-int8",
+    ),
+    Model(
+        id = "kroko-128l-it",
+        name = "Kroko – Italiano",
+        source = "https://huggingface.co/hudaiapa88/sherpa-stt-onnx/resolve/main",
+        sizeMb = 154,
+        qualityRes = R.string.quality_best_quality,
+        dirName = "kroko-128l-it",
+        files = listOf(
+            ModelFile("it/kroko_128l/decoder.int8.onnx?download=true", "decoder.int8.onnx"),
+            ModelFile("it/kroko_128l/encoder.int8.onnx?download=true", "encoder.int8.onnx"),
+            ModelFile("it/kroko_128l/joiner.int8.onnx?download=true", "joiner.int8.onnx"),
+            ModelFile("it/kroko_128l/tokens.txt?download=true", "tokens.txt"),
+        ),
+    ),
 )
 
 sealed class DownloadState {
-    data class Downloading(val progress: Float) : DownloadState()
+    data class Downloading(val progress: Float, val currentFile: String? = null) : DownloadState()
     data class Extracting(val filesDone: Int, val currentFile: String) : DownloadState()
     object Done : DownloadState()
     data class Error(val message: String) : DownloadState()
 }
 
 object ModelDownloader {
-    private const val BASE_URL =
-        "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models"
     private val client = OkHttpClient.Builder()
         .readTimeout(60, TimeUnit.SECONDS).build()
 
     fun modelDir(ctx: Context, model: Model) =
-        File(ctx.filesDir, "models/${model.archive}")
+        File(ctx.filesDir, "models/${model.dirName}")
 
-    fun isInstalled(ctx: Context, model: Model): Boolean {
-        val dir = modelDir(ctx, model)
+    /** Full URL for an archive download, or for a single file of an uncompressed model. */
+    fun downloadUrl(model: Model, remotePath: String? = null): String {
+        val base = model.source.trimEnd('/')
+        if (remotePath != null) return "$base/$remotePath"
+        val archive = model.archive ?: throw IOException("Model ${model.id} has no archive")
+        return "$base/$archive.tar.bz2"
+    }
+
+    /** Local file name for a remote path: drop any query string and folder prefix. */
+    fun localNameFor(remotePath: String): String =
+        remotePath.substringBefore('?').substringAfterLast('/')
+
+    /** True when dir contains all requiredFiles and satisfies the common rule
+     *  (at least one model file and one tokens file). */
+    fun isModelDirInstalled(dir: File, requiredFiles: List<String> = emptyList()): Boolean {
         if (!dir.exists()) return false
-        
-        // Basic sanity check: look for at least one .onnx or .ort file and a tokens file
         val files = dir.listFiles() ?: return false
         val hasModel = files.any { it.name.endsWith(".onnx") || it.name.endsWith(".ort") }
         val hasTokens = files.any { it.name.contains("tokens.txt") }
-        return hasModel && hasTokens
+        if (!hasModel || !hasTokens) return false
+        return requiredFiles.all { required -> files.any { it.name == required } }
     }
 
-    /** Download and extract model. Callbacks fire on background thread. */
+    fun isInstalled(ctx: Context, model: Model): Boolean =
+        isModelDirInstalled(modelDir(ctx, model), model.files.map { it.localName })
+
+    /** Download a model: by archive (tar.bz2, extracted) or as a list of
+     *  uncompressed files. Callbacks fire on a background thread. */
     fun download(ctx: Context, model: Model, onState: (DownloadState) -> Unit) {
-        val url = "$BASE_URL/${model.archive}.tar.bz2"
-        val tmpArchive = File(ctx.cacheDir, "${model.archive}.tar.bz2")
-        val modelsDir = File(ctx.filesDir, "models")
+        if (model.files.isNotEmpty()) {
+            downloadFiles(ctx, model, onState)
+        } else {
+            downloadArchive(ctx, model, onState)
+        }
+    }
+
+    private fun downloadArchive(ctx: Context, model: Model, onState: (DownloadState) -> Unit) {
+        val url = downloadUrl(model)
+        val tmpArchive = File(ctx.cacheDir, "${model.dirName}.tar.bz2")
         val finalDir = modelDir(ctx, model)
 
         Thread {
             try {
-                downloadFile(url, tmpArchive, onState)
+                val total = headContentLength(url)
+                downloadFile(url, tmpArchive) { written ->
+                    if (total > 0) {
+                        val p = (if (written > total) total else written).toFloat() / total
+                        onState(DownloadState.Downloading(p))
+                    }
+                }
                 onState(DownloadState.Extracting(0, ""))
-                
+
                 // Extract to a temporary directory first to ensure atomicity
-                val tmpExtractDir = File(ctx.cacheDir, "extract_${model.archive}")
+                val tmpExtractDir = File(ctx.cacheDir, "extract_${model.dirName}")
                 tmpExtractDir.deleteRecursively()
                 tmpExtractDir.mkdirs()
-                
+
                 extractTarBz2(tmpArchive, tmpExtractDir) { filesDone, current ->
                     onState(DownloadState.Extracting(filesDone, current))
                 }
-                
-                // The archive usually contains a top-level directory. 
+
+                // The archive usually contains a top-level directory.
                 // We need to find the actual model content.
                 val extractedContent = tmpExtractDir.listFiles()?.firstOrNull { it.isDirectory }
                     ?: tmpExtractDir
-                
+
                 // Move to final destination
                 finalDir.deleteRecursively()
                 if (!extractedContent.renameTo(finalDir)) {
                     // Fallback to copy if rename fails across filesystems
                     extractedContent.copyRecursively(finalDir, overwrite = true)
                 }
-                
+
                 tmpExtractDir.deleteRecursively()
                 onState(DownloadState.Done)
             } catch (e: Exception) {
@@ -98,16 +180,60 @@ object ModelDownloader {
         }.start()
     }
 
+    /** Download every file of an uncompressed model into its directory. On any
+     *  failure the model directory is removed so no partial model remains. */
+    private fun downloadFiles(ctx: Context, model: Model, onState: (DownloadState) -> Unit) {
+        val urls = model.files.map { downloadUrl(model, it.remotePath) }
+        val finalDir = modelDir(ctx, model)
+
+        Thread {
+            try {
+                // Probe lengths once, before touching the target dir, so the overall
+                // progress can be byte-weighed. Files without a length count as "1 step".
+                val lengths = urls.map { headContentLength(it) }
+                var totalUnits = 0.0
+                for (len in lengths) totalUnits += if (len > 0) len.toDouble() else 1.0
+
+                finalDir.deleteRecursively()
+                finalDir.mkdirs()
+                var doneUnits = 0.0
+                var index = 0
+                for (file in model.files) {
+                    val fileUnits = if (lengths[index] > 0) lengths[index].toDouble() else 1.0
+                    val dest = File(finalDir, file.localName)
+                    downloadFile(urls[index], dest) { written ->
+                        var writtenUnits = written.toDouble()
+                        if (writtenUnits > fileUnits) writtenUnits = fileUnits
+                        val p = ((doneUnits + writtenUnits) / totalUnits).toFloat()
+                        onState(DownloadState.Downloading(p, file.localName))
+                    }
+                    doneUnits += fileUnits
+                    index++
+                }
+                onState(DownloadState.Done)
+            } catch (e: Exception) {
+                finalDir.deleteRecursively()
+                onState(DownloadState.Error(e.message ?: "Unknown error"))
+            }
+        }.start()
+    }
+
     fun delete(ctx: Context, model: Model) =
         modelDir(ctx, model).deleteRecursively()
 
+    private fun headContentLength(url: String): Long =
+        try {
+            val response = client.newCall(Request.Builder().url(url).head().build()).execute()
+            if (response.isSuccessful) response.body?.contentLength() ?: -1L else -1L
+        } catch (e: Exception) { -1L }
+
+    /** Download url into dest, reporting the written byte count via onProgress. */
     private fun downloadFile(
-        url: String, dest: File, onState: (DownloadState) -> Unit
+        url: String, dest: File, onProgress: (Long) -> Unit = { _ -> }
     ) {
         val response = client.newCall(Request.Builder().url(url).build()).execute()
         if (!response.isSuccessful) throw IOException("HTTP ${response.code}")
         val body = response.body ?: throw IOException("Empty response")
-        val total = body.contentLength()
         var downloaded = 0L
 
         body.byteStream().use { src ->
@@ -117,8 +243,7 @@ object ModelDownloader {
                 while (src.read(buf).also { n = it } != -1) {
                     dst.write(buf, 0, n)
                     downloaded += n
-                    if (total > 0)
-                        onState(DownloadState.Downloading(downloaded.toFloat() / total))
+                    onProgress(downloaded)
                 }
             }
         }
