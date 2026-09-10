@@ -139,10 +139,16 @@ object ModelDownloader {
 
         Thread {
             try {
-                val total = headContentLength(url)
-                downloadFile(url, tmpArchive) { written ->
-                    if (total > 0) {
-                        val p = (if (written > total) total else written).toFloat() / total
+                // Fallback: the HEAD probe may fail on servers that answer 3xx
+                // (e.g. GitHub release assets) — the GET below reports the final
+                // content length, which is preferable for accurate progress.
+                val headTotal = headContentLength(url)
+                downloadFile(url, tmpArchive) { written, total ->
+                    var effective = -1L
+                    if (total > 0) effective = total
+                    else if (headTotal > 0) effective = headTotal
+                    if (effective > 0) {
+                        val p = (if (written > effective) effective else written).toFloat() / effective
                         onState(DownloadState.Downloading(p))
                     }
                 }
@@ -201,7 +207,7 @@ object ModelDownloader {
                 for (file in model.files) {
                     val fileUnits = if (lengths[index] > 0) lengths[index].toDouble() else 1.0
                     val dest = File(finalDir, file.localName)
-                    downloadFile(urls[index], dest) { written ->
+                    downloadFile(urls[index], dest) { written, _ ->
                         var writtenUnits = written.toDouble()
                         if (writtenUnits > fileUnits) writtenUnits = fileUnits
                         val p = ((doneUnits + writtenUnits) / totalUnits).toFloat()
@@ -227,13 +233,15 @@ object ModelDownloader {
             if (response.isSuccessful) response.body?.contentLength() ?: -1L else -1L
         } catch (e: Exception) { -1L }
 
-    /** Download url into dest, reporting the written byte count via onProgress. */
+    /** Download url into dest, reporting the written byte count and the final
+     *  content length (from the GET response, after redirects) via onProgress. */
     private fun downloadFile(
-        url: String, dest: File, onProgress: (Long) -> Unit = { _ -> }
+        url: String, dest: File, onProgress: (written: Long, total: Long) -> Unit = { _, _ -> }
     ) {
         val response = client.newCall(Request.Builder().url(url).build()).execute()
         if (!response.isSuccessful) throw IOException("HTTP ${response.code}")
         val body = response.body ?: throw IOException("Empty response")
+        val total = body.contentLength()
         var downloaded = 0L
 
         body.byteStream().use { src ->
@@ -243,7 +251,7 @@ object ModelDownloader {
                 while (src.read(buf).also { n = it } != -1) {
                     dst.write(buf, 0, n)
                     downloaded += n
-                    onProgress(downloaded)
+                    onProgress(downloaded, total)
                 }
             }
         }
