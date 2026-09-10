@@ -7,6 +7,8 @@ keystore.properties
 *.apk
 app/src/main/jniLibs/
 /build_jdk17.bat
+/adb.bat
+/run-tests.bat
 out/
 *.log
 *.class
