@@ -16,6 +16,12 @@ It supports:
 
 ## Changelog
 
+### v0.9.4 (2026-09-10)
+- **Fix: Kroko Italiano crash on load**: fixed a native crash when loading the Kroko 128l Italian model. The model is a *streaming* (online) ASR model, but the app was loading it with the offline recognizer. `LocalTranscriber` now detects streaming models automatically (by scanning the encoder graph for recurrent cache states) and loads them with the streaming recognizer, following the sherpa-onnx online ASR pattern (tail padding + `inputFinished` + decode loop).
+- **Fix: download progress for archived models**: restored the intermediate download percentage for archive-based models (e.g. Moonshine). A regression from v0.9.3 made the progress jump from 0% to 100% without intermediate values, because the progress relied on a HEAD request that GitHub release assets answer with a redirect and no content length. Progress is now computed from the final GET response, with the HEAD probe kept only as a fallback.
+- **Catalog clarity**: model display names now include the target language (e.g. "Whisper Base - English", "Parakeet 0.6B - Multilanguage") so users can tell English-only models apart from multilingual ones.
+- **Version bump**: 0.9.3 -> 0.9.4 (versionCode 21).
+
 ### v0.9.3 (2026-09-07)
 - **Multi-source model downloads**: the model downloader no longer assumes a single global repository — each catalog entry now defines its own download source, so models hosted on different repositories can be added and downloaded.
 - **Uncompressed models**: the catalog supports models distributed as a plain list of files (no archive), downloaded individually into the model directory. The status panel shows the overall progress and the current file, without an extraction phase.
