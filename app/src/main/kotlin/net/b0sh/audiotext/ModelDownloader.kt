@@ -31,7 +31,7 @@ const val SHERPA_MODELS_SOURCE =
 val MODEL_CATALOG = listOf(
     Model(
         id = "sherpa-onnx-nemo-parakeet_tdt_ctc_110m-en-36000-int8",
-        name = "Parakeet 110M",
+        name = "Parakeet 110M - English",
         source = SHERPA_MODELS_SOURCE,
         sizeMb = 100,
         qualityRes = R.string.quality_best_value,
@@ -40,7 +40,7 @@ val MODEL_CATALOG = listOf(
     ),
     Model(
         id = "sherpa-onnx-whisper-base.en",
-        name = "Whisper Base",
+        name = "Whisper Base - English",
         source = SHERPA_MODELS_SOURCE,
         sizeMb = 199,
         qualityRes = R.string.quality_three,
@@ -49,7 +49,7 @@ val MODEL_CATALOG = listOf(
     ),
     Model(
         id = "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
-        name = "Parakeet 0.6B",
+        name = "Parakeet 0.6B - Multilanguage",
         source = SHERPA_MODELS_SOURCE,
         sizeMb = 465,
         qualityRes = R.string.quality_best_quality,
@@ -59,7 +59,7 @@ val MODEL_CATALOG = listOf(
     ),
     Model(
         id = "sherpa-onnx-moonshine-tiny-en-int8",
-        name = "Moonshine Tiny",
+        name = "Moonshine Tiny - English",
         source = SHERPA_MODELS_SOURCE,
         sizeMb = 103,
         qualityRes = R.string.quality_fast,
