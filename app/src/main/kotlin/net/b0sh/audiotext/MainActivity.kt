@@ -10,17 +10,20 @@ import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.view.View.MeasureSpec
+import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.*
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.radiobutton.MaterialRadioButton
 import java.io.File
 import kotlin.concurrent.thread
@@ -29,17 +32,22 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var statusIcon: ImageView
     private lateinit var statusSubtitle: TextView
+    private lateinit var rootLayout: LinearLayout
     private lateinit var modelContainer: LinearLayout
+    private lateinit var localHeader: TextView
+    private lateinit var localScroll: MaxHeightScrollView
+    private lateinit var localSection: LinearLayout
     private lateinit var infoSection: TextView
-    private var downloading = false
+    private lateinit var aboutButton: MaterialButton
+    private lateinit var downloadButton: MaterialButton
 
     private val modelRows = mutableMapOf<String, ModelRowViews>()
+    private var lastInstalledIds: Set<String>? = null
 
     private data class ModelRowViews(
+        val row: View,
         val radio: MaterialRadioButton,
-        val progress: LinearProgressIndicator,
         val subtitle: TextView,
-        val dlBtn: MaterialButton,
         val delBtn: MaterialButton
     )
 
@@ -76,27 +84,54 @@ class MainActivity : AppCompatActivity() {
         statusSubtitle = statusRow.findViewWithTag("subtitle")
         root.addView(statusRow)
 
-        // Local Models section
+        // Installed models live here, in one internally-scrolling box so the page
+        // itself stays fixed; downloads happen in the catalog page.
         modelContainer = vertical(0)
-        modelContainer.addView(sectionHeader(string(R.string.section_local_models)))
-        for (m in MODEL_CATALOG) modelContainer.addView(buildModelRow(m))
+        localHeader = sectionHeader(string(R.string.section_local_models_available))
+        modelContainer.addView(localHeader)
+        localScroll = MaxHeightScrollView(this, Int.MAX_VALUE).apply {
+            addView(vertical(0).also { localSection = it })
+        }
+        modelContainer.addView(localScroll)
+        for (m in MODEL_CATALOG) buildModelRow(m)
         root.addView(modelContainer)
 
-        // About button
-        root.addView(MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = string(R.string.about_button)
+        // Download button: opens the downloadable-models catalog page.
+        downloadButton = MaterialButton(this).apply {
+            text = string(R.string.models_download_button)
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply {
                 topMargin = dp(16)
                 leftMargin = dp(24)
                 rightMargin = dp(24)
             }
-            setOnClickListener { startActivity(Intent(this@MainActivity, AboutActivity::class.java)) }
-        })
+            setOnClickListener { startActivity(Intent(this@MainActivity, ModelCatalogActivity::class.java)) }
+        }
+        root.addView(downloadButton)
 
-        setContentView(ScrollView(this).apply {
-            setBackgroundColor(attrColor(android.R.attr.colorBackground))
-            addView(root)
-        })
+        // About button
+        aboutButton = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = string(R.string.about_button)
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply {
+                topMargin = dp(12)
+                leftMargin = dp(24)
+                rightMargin = dp(24)
+            }
+            setOnClickListener { startActivity(Intent(this@MainActivity, AboutActivity::class.java)) }
+        }
+        root.addView(aboutButton)
+
+        // Fixed page: no outer scrolling — only the installed-models box
+        // scrolls, inside its own area. Bottom inset keeps the buttons above
+        // the navigation bar.
+        rootLayout = root
+        root.setBackgroundColor(attrColor(android.R.attr.colorBackground))
+        setContentView(root)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            // computeCaps() reads the insets itself (rootWindowInsets) and
+            // applies the bottom padding; here we only trigger a recompute.
+            scheduleCapsRecompute()
+            insets
+        }
 
         // Onboarding: proponi l'introduzione solo alla prima apertura.
         if (IntroFlag.shouldShow(prefs())) {
@@ -104,10 +139,22 @@ class MainActivity : AppCompatActivity() {
             IntroFlag.markShown(prefs())
         }
 
+        // No model installed yet: bring the user straight to the catalog.
+        if (MODEL_CATALOG.none { ModelDownloader.isInstalled(this, it) }) {
+            startActivity(Intent(this, ModelCatalogActivity::class.java))
+        }
+
         // Load model in background if needed
         thread { initLocalModel() }
 
         refresh()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Coming back from the catalog page: pick up installed/removed models.
+        refresh()
+        thread { initLocalModel() }
     }
 
     private fun initLocalModel(): Boolean {
@@ -129,108 +176,101 @@ class MainActivity : AppCompatActivity() {
 
     private fun buildModelRow(model: Model): View {
         val radio = MaterialRadioButton(this).apply { isClickable = false }
-        val dlBtn = MaterialButton(this, null, com.google.android.material.R.attr.materialIconButtonStyle).apply { text = "↓" }
         val delBtn = MaterialButton(this, null, com.google.android.material.R.attr.materialIconButtonStyle).apply {
             text = "🗑"
             visibility = View.GONE
             setOnClickListener { onModelDelete(model) }
         }
-        val progress = LinearProgressIndicator(this).apply { visibility = View.GONE }
         val rightContainer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            addView(delBtn); addView(dlBtn); addView(radio)
+            addView(delBtn); addView(radio)
         }
-        val row = settingsRow(model.name, string(R.string.model_size_mb, string(model.qualityRes), model.sizeMb), rightContainer) { onModelAction(model) }
+        val row = settingsRow(model.name, string(R.string.model_size_mb, string(model.qualityRes), model.sizeMb), rightContainer) { selectModel(model) }
         val textContainer = row.getChildAt(0) as LinearLayout
-        textContainer.addView(progress)
-        modelRows[model.id] = ModelRowViews(radio, progress, textContainer.findViewWithTag("subtitle"), dlBtn, delBtn)
+        modelRows[model.id] = ModelRowViews(row, radio, textContainer.findViewWithTag("subtitle"), delBtn)
         return row
     }
 
-    private fun onModelAction(model: Model) {
-        if (ModelDownloader.isInstalled(this, model)) {
-            prefs().edit().putString("model_name", model.id).apply()
-            TranscriberManager.reset()
-            thread {
-                val success = initLocalModel()
-                runOnUiThread {
-                    if (success) setStatus(R.string.status_active_model, model.name)
-                    refresh()
-                }
-            }
-            return
-        }
-        val views = modelRows[model.id] ?: return
-        views.dlBtn.isEnabled = false
-        views.progress.visibility = View.VISIBLE
-        views.progress.isIndeterminate = false
-        views.subtitle.text = string(R.string.subtitle_downloading, 0)
-        downloading = true
-        refresh()
-        ModelDownloader.download(this, model) { state ->
+    /** Select the installed model to use for transcription. */
+    private fun selectModel(model: Model) {
+        prefs().edit().putString("model_name", model.id).apply()
+        TranscriberManager.reset()
+        thread {
+            val success = initLocalModel()
             runOnUiThread {
-                when (state) {
-                    is DownloadState.Downloading -> {
-                        views.progress.progress = (state.progress * 100).toInt()
-                        views.subtitle.text = if (state.currentFile.isNullOrBlank())
-                            string(R.string.subtitle_downloading, (state.progress * 100).toInt())
-                        else
-                            string(R.string.subtitle_downloading_file, (state.progress * 100).toInt(), state.currentFile)
-                    }
-                    is DownloadState.Extracting -> {
-                        views.progress.isIndeterminate = true
-                        views.subtitle.text = if (state.currentFile.isBlank())
-                            string(R.string.subtitle_installing)
-                        else
-                            string(R.string.subtitle_installing_file, state.currentFile)
-                        setStatus(R.string.status_installing_model, model.name)
-                    }
-                    is DownloadState.Done -> {
-                        downloading = false
-                        updateInfoSection()
-                        views.progress.isIndeterminate = false
-                        views.progress.visibility = View.GONE
-                        views.subtitle.text = string(R.string.subtitle_installed)
-                        setStatus(R.string.status_model_installed, model.name)
-                        prefs().edit().putString("model_name", model.id).apply()
-                        TranscriberManager.reset()
-                        // Wait for model to actually load before refreshing UI
-                        thread {
-                            val success = initLocalModel()
-                            runOnUiThread {
-                                if (success) setStatus(R.string.status_model_ready, model.name)
-                                else setStatus(R.string.status_model_load_failed)
-                                refresh()
-                            }
-                        }
-                    }
-
-                    is DownloadState.Error -> {
-                        downloading = false
-                        views.progress.isIndeterminate = false
-                        views.progress.visibility = View.GONE
-                        views.subtitle.text = string(R.string.model_size_mb, string(model.qualityRes), model.sizeMb)
-                        views.dlBtn.isEnabled = true
-                        setStatus(R.string.status_download_failed, state.message)
-                        updateInfoSection()
-                    }
-                }
+                if (success) setStatus(R.string.status_active_model, model.name)
+                refresh()
             }
         }
     }
 
     private fun refresh() {
         val activeModel = prefs().getString("model_name", "")
+        val installedIds = MODEL_CATALOG
+            .filter { ModelDownloader.isInstalled(this, it) }
+            .map { it.id }.toSet()
+        if (installedIds != lastInstalledIds) {
+            lastInstalledIds = installedIds
+            repartition(installedIds)
+        }
         MODEL_CATALOG.forEach { m ->
             val views = modelRows[m.id] ?: return@forEach
-            val installed = ModelDownloader.isInstalled(this, m)
             views.radio.isChecked = activeModel == m.id
-            views.radio.visibility = if (installed) View.VISIBLE else View.GONE
-            views.dlBtn.visibility = if (installed) View.GONE else View.VISIBLE
-            views.delBtn.visibility = if (installed) View.VISIBLE else View.GONE
+            views.delBtn.visibility = if (m.id in installedIds) View.VISIBLE else View.GONE
         }
+        val showLocal = installedIds.isNotEmpty()
+        localHeader.visibility = if (showLocal) View.VISIBLE else View.GONE
+        localScroll.visibility = localHeader.visibility
         updateInfoSection()
+        scheduleCapsRecompute()
+    }
+
+    /** Show only the installed models in the local box, sorted alphabetically
+     *  by display name. Row views are reused across repartitions. */
+    private fun repartition(installedIds: Set<String>) {
+        localSection.removeAllViews()
+        val installed = MODEL_CATALOG.filter { it.id in installedIds }.sortedBy { it.name }
+        for (m in installed) localSection.addView(modelRows.getValue(m.id).row)
+        localScroll.scrollTo(0, 0)
+    }
+
+    /** Recompute the list-box heights once the pending layout pass has run. */
+    private fun scheduleCapsRecompute() {
+        rootLayout.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                rootLayout.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                if (rootLayout.rootWindowInsets == null) {
+                    // System insets not dispatched yet — try again next pass.
+                    rootLayout.post { scheduleCapsRecompute() }
+                    return
+                }
+                computeCaps()
+            }
+        })
+    }
+
+    /** Keep the page fixed (never scrolling): the installed-models box takes the
+     *  height left between the status area and the buttons, always above the
+     *  system navigation bar. It wraps its content when short and scrolls
+     *  internally when long. */
+    private fun computeCaps() {
+        val bars = rootLayout.rootWindowInsets
+            ?.let { WindowInsetsCompat.toWindowInsetsCompat(it) }
+            ?.getInsets(WindowInsetsCompat.Type.systemBars())?.bottom ?: 0
+        if (rootLayout.paddingBottom != bars) rootLayout.setPadding(0, 0, 0, bars)
+
+        val minArea = dp(96)
+        val dlLp = downloadButton.layoutParams as ViewGroup.MarginLayoutParams
+        val aboutLp = aboutButton.layoutParams as ViewGroup.MarginLayoutParams
+        val bottomBlock = downloadButton.height + dlLp.topMargin +
+            aboutButton.height + aboutLp.topMargin
+        val available = rootLayout.height - bars - modelContainer.top -
+            bottomBlock - localHeader.height
+        val localH = (0 until localSection.childCount).sumOf { localSection.getChildAt(it).height }
+        localScroll.maxHeightPx = if (localH <= available) Int.MAX_VALUE
+            else maxOf(available, minArea)
+        localScroll.requestLayout()
     }
 
     private fun onModelDelete(model: Model) {
@@ -264,7 +304,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateInfoSection() {
         infoSection.text = when {
-            downloading -> string(R.string.info_downloading)
             MODEL_CATALOG.any { ModelDownloader.isInstalled(this, it) } -> string(R.string.info_model_ready)
             else -> string(R.string.info_no_model)
         }
@@ -326,4 +365,36 @@ class MainActivity : AppCompatActivity() {
     private fun string(resId: Int, vararg args: Any): String =
         getString(resId, *args)
     private fun prefs() = getSharedPreferences("audiotext", MODE_PRIVATE)
+}
+
+/** ScrollView that grows with its content up to maxHeightPx, then scrolls
+ *  internally instead of pushing the rest of the page down. The child is
+ *  measured at its full content height (UNSPECIFIED) so the scroll range is
+ *  not lost when the content exceeds the cap. */
+private class MaxHeightScrollView(context: Context, var maxHeightPx: Int) :
+    ScrollView(context) {
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val child = getChildAt(0)
+        if (child == null) {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            return
+        }
+        child.measure(
+            ViewGroup.getChildMeasureSpec(
+                widthMeasureSpec, paddingLeft + paddingRight, child.layoutParams.width
+            ),
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        )
+        val contentHeight = child.measuredHeight + paddingTop + paddingBottom
+        val capped = minOf(contentHeight, maxHeightPx.coerceAtMost((1 shl 30) - 1))
+        val height = when (MeasureSpec.getMode(heightMeasureSpec)) {
+            MeasureSpec.EXACTLY -> MeasureSpec.getSize(heightMeasureSpec)
+            MeasureSpec.AT_MOST -> minOf(capped, MeasureSpec.getSize(heightMeasureSpec))
+            else -> capped
+        }
+        setMeasuredDimension(
+            View.getDefaultSize(suggestedMinimumWidth, widthMeasureSpec),
+            View.resolveSizeAndState(height, heightMeasureSpec, 0)
+        )
+    }
 }

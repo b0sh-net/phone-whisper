@@ -5,7 +5,13 @@
     <!-- Main activity -->
     <string name="status_label">Status</string>
     <string name="status_ready">Ready</string>
-    <string name="section_local_models">Local models</string>
+    <string name="section_local_models_available">Local models available</string>
+    <string name="section_downloadable_models">Downloadable models</string>
+    <string name="models_download_button">Download models</string>
+    <string name="models_catalog_hint">Choose a model to download and install on your device. Transcription runs fully offline.</string>
+    <string name="models_catalog_empty">All models are already installed</string>
+    <string name="back_button">Back</string>
+    <string name="toast_model_installed">%1$s installed</string>
     <string name="status_initializing_model">Initializing model...</string>
     <string name="status_local_model_ready">Local model ready: %1$s</string>
     <string name="status_no_local_model">No local model installed</string>

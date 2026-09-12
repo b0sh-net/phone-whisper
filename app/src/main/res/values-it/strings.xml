@@ -5,7 +5,13 @@
     <!-- Main activity -->
     <string name="status_label">Stato</string>
     <string name="status_ready">Pronto</string>
-    <string name="section_local_models">Modelli locali</string>
+    <string name="section_local_models_available">Modelli locali disponibili</string>
+    <string name="section_downloadable_models">Modelli scaricabili</string>
+    <string name="models_download_button">Scarica modelli</string>
+    <string name="models_catalog_hint">Scegli un modello da scaricare e installare sul dispositivo. La trascrizione avviene completamente offline.</string>
+    <string name="models_catalog_empty">Tutti i modelli sono già installati</string>
+    <string name="back_button">Indietro</string>
+    <string name="toast_model_installed">%1$s installato</string>
     <string name="status_initializing_model">Inizializzazione del modello...</string>
     <string name="status_local_model_ready">Modello locale pronto: %1$s</string>
     <string name="status_no_local_model">Nessun modello locale installato</string>

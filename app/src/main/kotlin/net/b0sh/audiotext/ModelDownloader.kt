@@ -73,13 +73,70 @@ val MODEL_CATALOG = listOf(
         sizeMb = 154,
         qualityRes = R.string.quality_best_quality,
         dirName = "kroko-128l-it",
-        files = listOf(
-            ModelFile("it/kroko_128l/decoder.int8.onnx?download=true", "decoder.int8.onnx"),
-            ModelFile("it/kroko_128l/encoder.int8.onnx?download=true", "encoder.int8.onnx"),
-            ModelFile("it/kroko_128l/joiner.int8.onnx?download=true", "joiner.int8.onnx"),
-            ModelFile("it/kroko_128l/tokens.txt?download=true", "tokens.txt"),
-        ),
+        files = krokoFiles("it"),
     ),
+    Model(
+        id = "kroko-128l-de",
+        name = "Kroko – Deutsch",
+        source = "https://huggingface.co/hudaiapa88/sherpa-stt-onnx/resolve/main",
+        sizeMb = 154,
+        qualityRes = R.string.quality_best_quality,
+        dirName = "kroko-128l-de",
+        files = krokoFiles("de"),
+    ),
+    Model(
+        id = "kroko-128l-en",
+        name = "Kroko – English",
+        source = "https://huggingface.co/hudaiapa88/sherpa-stt-onnx/resolve/main",
+        sizeMb = 154,
+        qualityRes = R.string.quality_best_quality,
+        dirName = "kroko-128l-en",
+        files = krokoFiles("en"),
+    ),
+    Model(
+        id = "kroko-128l-es",
+        name = "Kroko – Español",
+        source = "https://huggingface.co/hudaiapa88/sherpa-stt-onnx/resolve/main",
+        sizeMb = 154,
+        qualityRes = R.string.quality_best_quality,
+        dirName = "kroko-128l-es",
+        files = krokoFiles("es"),
+    ),
+    Model(
+        id = "kroko-128l-fr",
+        name = "Kroko – Français",
+        source = "https://huggingface.co/hudaiapa88/sherpa-stt-onnx/resolve/main",
+        sizeMb = 154,
+        qualityRes = R.string.quality_best_quality,
+        dirName = "kroko-128l-fr",
+        files = krokoFiles("fr"),
+    ),
+    Model(
+        id = "kroko-128l-pt",
+        name = "Kroko – Português",
+        source = "https://huggingface.co/hudaiapa88/sherpa-stt-onnx/resolve/main",
+        sizeMb = 154,
+        qualityRes = R.string.quality_best_quality,
+        dirName = "kroko-128l-pt",
+        files = krokoFiles("pt"),
+    ),
+    Model(
+        id = "kroko-128l-tr",
+        name = "Kroko – Türkçe",
+        source = "https://huggingface.co/hudaiapa88/sherpa-stt-onnx/resolve/main",
+        sizeMb = 154,
+        qualityRes = R.string.quality_best_quality,
+        dirName = "kroko-128l-tr",
+        files = krokoFiles("tr"),
+    ),
+)
+
+/** The four Kroko model files, hosted under `<lang>/kroko_128l/`. */
+private fun krokoFiles(lang: String) = listOf(
+    ModelFile("$lang/kroko_128l/decoder.int8.onnx?download=true", "decoder.int8.onnx"),
+    ModelFile("$lang/kroko_128l/encoder.int8.onnx?download=true", "encoder.int8.onnx"),
+    ModelFile("$lang/kroko_128l/joiner.int8.onnx?download=true", "joiner.int8.onnx"),
+    ModelFile("$lang/kroko_128l/tokens.txt?download=true", "tokens.txt"),
 )
 
 sealed class DownloadState {

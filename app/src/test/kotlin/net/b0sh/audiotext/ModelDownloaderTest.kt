@@ -81,7 +81,7 @@ class ModelDownloaderTest {
     }
 
     @Test fun `catalog has expected structure`() {
-        assertEquals(5, MODEL_CATALOG.size)
+        assertEquals(11, MODEL_CATALOG.size)
         assertTrue(MODEL_CATALOG.any { it.recommended })
         assertTrue(MODEL_CATALOG.all { it.source.isNotEmpty() && it.id.isNotEmpty() && it.sizeMb > 0 })
         assertEquals(MODEL_CATALOG.size, MODEL_CATALOG.map { it.id }.toSet().size)
@@ -89,13 +89,37 @@ class ModelDownloaderTest {
         val archiveModels = MODEL_CATALOG.filter { it.archive != null }
         val fileModels = MODEL_CATALOG.filter { it.files.isNotEmpty() }
         assertEquals(4, archiveModels.size)
-        assertEquals(1, fileModels.size)
+        assertEquals(7, fileModels.size)
 
         val kroko = MODEL_CATALOG.find { it.id == "kroko-128l-it" }
         assertNotNull(kroko)
         assertEquals("kroko-128l-it", kroko!!.dirName)
         assertEquals(4, kroko!!.files.size)
         assertTrue(kroko!!.files.all { it.localName.isNotEmpty() && it.remotePath.isNotEmpty() })
+    }
+
+    @Test fun `kroko catalog covers one entry per language with per-language paths`() {
+        val langs = listOf("it", "de", "en", "es", "fr", "pt", "tr")
+        val krokoModels = MODEL_CATALOG.filter { it.id.startsWith("kroko-128l-") }
+        assertEquals(langs.size, krokoModels.size)
+        assertEquals(langs, krokoModels.map { it.id.removePrefix("kroko-128l-") })
+
+        for (lang in langs) {
+            val model = MODEL_CATALOG.find { it.id == "kroko-128l-$lang" }
+            assertNotNull(model)
+            assertEquals("kroko-128l-$lang", model!!.dirName)
+            assertEquals(listOf("decoder.int8.onnx", "encoder.int8.onnx", "joiner.int8.onnx", "tokens.txt"),
+                model.files.map { it.localName })
+            assertEquals(
+                listOf(
+                    "$lang/kroko_128l/decoder.int8.onnx?download=true",
+                    "$lang/kroko_128l/encoder.int8.onnx?download=true",
+                    "$lang/kroko_128l/joiner.int8.onnx?download=true",
+                    "$lang/kroko_128l/tokens.txt?download=true",
+                ),
+                model.files.map { it.remotePath }
+            )
+        }
     }
 
     @Test fun `composes archive url from model source`() {
