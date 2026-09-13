@@ -11,6 +11,10 @@
     <string name="models_catalog_hint">Scegli un modello da scaricare e installare sul dispositivo. La trascrizione avviene completamente offline.</string>
     <string name="models_catalog_empty">Tutti i modelli sono già installati</string>
     <string name="back_button">Indietro</string>
+    <string name="action_download">Scarica il modello</string>
+    <string name="bottom_nav_home">Home</string>
+    <string name="bottom_nav_catalog">Catalogo</string>
+    <string name="bottom_nav_about">Info</string>
     <string name="toast_model_installed">%1$s installato</string>
     <string name="status_initializing_model">Inizializzazione del modello...</string>
     <string name="status_local_model_ready">Modello locale pronto: %1$s</string>

@@ -11,6 +11,10 @@
     <string name="models_catalog_hint">Choose a model to download and install on your device. Transcription runs fully offline.</string>
     <string name="models_catalog_empty">All models are already installed</string>
     <string name="back_button">Back</string>
+    <string name="action_download">Download model</string>
+    <string name="bottom_nav_home">Home</string>
+    <string name="bottom_nav_catalog">Catalog</string>
+    <string name="bottom_nav_about">Info</string>
     <string name="toast_model_installed">%1$s installed</string>
     <string name="status_initializing_model">Initializing model...</string>
     <string name="status_local_model_ready">Local model ready: %1$s</string>

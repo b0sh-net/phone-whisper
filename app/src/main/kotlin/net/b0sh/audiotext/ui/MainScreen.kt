@@ -5,21 +5,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,24 +52,21 @@ data class MainScreenUiState(
 )
 
 /**
- * Schermata principale Compose. La pagina è fissa: solo il box dei modelli
- * installati scorre internamente (weight), così i due bottoni restano sempre
- * sopra la barra di navigazione (riproduce il vecchio `computeCaps`).
+ * Schermata principale Compose. Titolo ("Audio To Text") e testo informativo
+ * restano fissi; il blocco "Stato" + "modelli installati" scorre verticalmente,
+ * così la schermata funziona anche in orizzontale (spazio verticale ridotto).
  */
 @Composable
 fun MainScreen(
     state: MainScreenUiState,
     onSelectModel: (String) -> Unit,
     onDeleteModel: (String) -> Unit,
-    onOpenCatalog: () -> Unit,
-    onOpenAbout: () -> Unit,
 ) {
     var pendingDelete by remember { mutableStateOf<InstalledModelRow?>(null) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .safeDrawingPadding()
             .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 24.dp, vertical = 16.dp),
     ) {
@@ -93,38 +85,41 @@ fun MainScreen(
             modifier = Modifier.padding(bottom = 8.dp),
         )
 
-        // Status row: icon + label
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(vertical = 16.dp),
-        ) {
-            statusIcon(state.statusIconRes)
-            Column(modifier = Modifier.padding(start = 16.dp)) {
-                Text(stringResource(R.string.status_label), fontSize = 18.sp)
-                Text(
-                    state.statusText,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
-        // Installed models header
-        Text(
-            text = stringResource(R.string.section_local_models_available),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
-        )
-
-        // Internally-scrolling list of installed models (page stays fixed)
-        LazyColumn(
+        // Area scrollabile: Stato + modelli installati. Titolo e testo
+        // informativo restano fissi anche in orizzontale.
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
         ) {
-            items(state.installedModels, key = { it.id }) { row ->
+            // Status row: icon + label
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(vertical = 16.dp),
+            ) {
+                statusIcon(state.statusIconRes)
+                Column(modifier = Modifier.padding(start = 16.dp)) {
+                    Text(stringResource(R.string.status_label), fontSize = 18.sp)
+                    Text(
+                        state.statusText,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            // Installed models header
+            Text(
+                text = stringResource(R.string.section_local_models_available),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
+            )
+
+            // Installed models: scorrono insieme allo stato
+            state.installedModels.forEach { row ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -142,7 +137,12 @@ fun MainScreen(
                     }
                     TextButton(
                         onClick = { pendingDelete = row },
-                        content = { Text("🗑") },
+                        content = {
+                            Icon(
+                                painterResource(R.drawable.ic_delete),
+                                contentDescription = stringResource(R.string.action_delete),
+                            )
+                        },
                     )
                     RadioButton(
                         selected = row.isActive,
@@ -151,18 +151,6 @@ fun MainScreen(
                 }
             }
         }
-
-        // Bottom buttons, pinned above the navigation bar
-        Button(
-            onClick = onOpenCatalog,
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            content = { Text(stringResource(R.string.models_download_button)) },
-        )
-        OutlinedButton(
-            onClick = onOpenAbout,
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp),
-            content = { Text(stringResource(R.string.about_button)) },
-        )
     }
 
     // Deletion confirmation dialog

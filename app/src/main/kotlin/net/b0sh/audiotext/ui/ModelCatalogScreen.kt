@@ -6,17 +6,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,6 +20,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,7 +41,7 @@ sealed class DownloadPhase {
     data class Extracting(val currentFile: String) : DownloadPhase()
 }
 
-/** Stato UI del catalogo, derivato in ModelCatalogActivity. */
+/** Stato UI del catalogo, derivato in MainActivity. */
 data class CatalogScreenState(
     val rows: List<CatalogModelRow>,
     val downloadPhases: Map<String, DownloadPhase>,
@@ -58,31 +55,21 @@ data class CatalogScreenState(
 @Composable
 fun ModelCatalogScreen(
     state: CatalogScreenState,
-    onBack: () -> Unit,
     onDownload: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .safeDrawingPadding()
             .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        // Top bar: back + title
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.back_button),
-                )
-            }
-            Text(
-                text = stringResource(R.string.section_downloadable_models),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(start = 8.dp),
-            )
-        }
+        // Title
+        Text(
+            text = stringResource(R.string.section_downloadable_models),
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 8.dp),
+        )
 
         // Hint
         Text(
@@ -149,7 +136,12 @@ private fun ModelCard(
                     enabled = phase == DownloadPhase.Idle,
                     onClick = onDownload,
                     colors = ButtonDefaults.textButtonColors(),
-                    content = { Text("↓") },
+                    content = {
+                        Icon(
+                            painterResource(R.drawable.arrow_downward_24),
+                            contentDescription = stringResource(R.string.action_download),
+                        )
+                    },
                 )
             }
             if (phase != DownloadPhase.Idle) {

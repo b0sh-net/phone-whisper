@@ -1,69 +1,108 @@
 package net.b0sh.audiotext
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.lifecycleScope
+import net.b0sh.audiotext.ui.AboutScreen
+import net.b0sh.audiotext.ui.CatalogModelRow
+import net.b0sh.audiotext.ui.CatalogScreenState
 import net.b0sh.audiotext.ui.DownloadPhase
 import net.b0sh.audiotext.ui.InstalledModelRow
 import net.b0sh.audiotext.ui.MainScreen
 import net.b0sh.audiotext.ui.MainScreenUiState
+import net.b0sh.audiotext.ui.ModelCatalogScreen
 import net.b0sh.audiotext.ui.statusDrawable
 import net.b0sh.audiotext.ui.theme.AudioToTextTheme
 import kotlin.concurrent.thread
 import kotlinx.coroutines.launch
 
+/** Destinazioni della barra di navigazione in basso. */
+private enum class Tab(@StringRes val labelRes: Int, @DrawableRes val iconRes: Int) {
+    Home(R.string.bottom_nav_home, R.drawable.ic_home),
+    Catalog(R.string.bottom_nav_catalog, R.drawable.ic_catalog),
+    About(R.string.bottom_nav_about, R.drawable.ic_info),
+}
+
+/**
+ * Activity host unica: `Scaffold` con una NavigationBar fissa (Home, Catalogo,
+ * Maggiori informazioni) e le tre schermate come destinazioni. Il download dei
+ * modelli è gestito da [ModelDownloadService] (foreground service).
+ */
 class MainActivity : AppCompatActivity() {
 
+    private var currentTab by mutableStateOf(Tab.Home)
+
+    // Stato schermata Home
     private var statusText by mutableStateOf("")
     private var statusIconRes by mutableStateOf(R.drawable.status_ready)
     private var infoText by mutableStateOf("")
     private var installedModels by mutableStateOf<List<InstalledModelRow>>(emptyList())
 
+    // Stato catalogo
+    private var rows by mutableStateOf<List<CatalogModelRow>>(emptyList())
+
+    private var pendingModel: Model? = null
+    private val notifPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ ->
+            pendingModel?.let { ModelDownloadService.start(this, it) }
+            pendingModel = null
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Senza un modello installato si parte direttamente dal catalogo.
+        currentTab = if (MODEL_CATALOG.any { ModelDownloader.isInstalled(this, it) })
+            Tab.Home else Tab.Catalog
+
         setContent {
             AudioToTextTheme {
-                MainScreen(
-                    state = MainScreenUiState(
-                        infoText = infoText,
-                        statusText = statusText,
-                        statusIconRes = statusIconRes,
-                        installedModels = installedModels,
-                    ),
-                    onSelectModel = ::selectModel,
-                    onDeleteModel = ::deleteModel,
-                    onOpenCatalog = { startActivity(Intent(this@MainActivity, ModelCatalogActivity::class.java)) },
-                    onOpenAbout = { startActivity(Intent(this@MainActivity, AboutActivity::class.java)) },
-                )
+                MainScaffold()
             }
         }
 
         // Onboarding: proponi l'introduzione solo alla prima apertura.
         if (IntroFlag.shouldShow(prefs())) {
-            startActivity(Intent(this, IntroActivity::class.java).putExtra(IntroActivity.EXTRA_ORIGIN, IntroActivity.ORIGIN_FIRST_OPEN))
+            startActivity(
+                Intent(this, IntroActivity::class.java)
+                    .putExtra(IntroActivity.EXTRA_ORIGIN, IntroActivity.ORIGIN_FIRST_OPEN)
+            )
             IntroFlag.markShown(prefs())
         }
 
-        // No model installed yet: bring the user straight to the catalog.
-        if (MODEL_CATALOG.none { ModelDownloader.isInstalled(this, it) }) {
-            startActivity(Intent(this, ModelCatalogActivity::class.java))
-        }
-
-        // Load model in background if needed
         thread { initLocalModel() }
+        refreshCatalog()
+        refreshHome()
 
-        refresh()
-
-        // Un download concluso in background (service) mentre siamo sulla
-        // schermata principale: aggiorna la lista e inizializza il modello.
+        // Un download concluso in background (service): aggiorna lista dei
+        // modelli installati (Home) e catalogo, e inizializza il modello.
         lifecycleScope.launch {
             var previous = ModelDownloadRepository.downloads.toMap()
             snapshotFlow { ModelDownloadRepository.downloads.toMap() }.collect { current ->
@@ -73,7 +112,8 @@ class MainActivity : AppCompatActivity() {
                 }
                 previous = current
                 if (completed) {
-                    refresh()
+                    refreshCatalog()
+                    refreshHome()
                     thread { initLocalModel() }
                 }
             }
@@ -82,10 +122,86 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Coming back from the catalog page: pick up installed/removed models.
-        refresh()
+        refreshCatalog()
+        refreshHome()
         thread { initLocalModel() }
     }
+
+    @Composable
+    private fun MainScaffold() {
+        // Il tasto Back dalle altre schede torna alla Home.
+        BackHandler(enabled = currentTab != Tab.Home) { currentTab = Tab.Home }
+
+        Scaffold(
+            bottomBar = {
+                NavigationBar {
+                    Tab.entries.forEach { tab ->
+                        val selected = currentTab == tab
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = { currentTab = tab },
+                            icon = {
+                                Icon(
+                                    painterResource(tab.iconRes),
+                                    contentDescription = null,
+                                )
+                            },
+                            label = { Text(stringResource(tab.labelRes)) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
+                        )
+                    }
+                }
+            },
+        ) { contentPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(contentPadding),
+            ) {
+                when (currentTab) {
+                    Tab.Home -> MainScreen(
+                        state = MainScreenUiState(
+                            infoText = infoText,
+                            statusText = statusText,
+                            statusIconRes = statusIconRes,
+                            installedModels = installedModels,
+                        ),
+                        onSelectModel = ::selectModel,
+                        onDeleteModel = ::deleteModel,
+                    )
+                    Tab.Catalog -> ModelCatalogScreen(
+                        state = CatalogScreenState(
+                            rows = rows,
+                            downloadPhases = ModelDownloadRepository.downloads,
+                        ),
+                        onDownload = ::onDownload,
+                    )
+                    Tab.About -> AboutScreen(
+                        paragraphs = aboutParagraphs(),
+                        onReviewIntro = {
+                            startActivity(
+                                Intent(this@MainActivity, IntroActivity::class.java)
+                                    .putExtra(IntroActivity.EXTRA_ORIGIN, IntroActivity.ORIGIN_MANUAL)
+                            )
+                        },
+                    )
+                }
+            }
+        }
+    }
+
+    private fun aboutParagraphs(): List<String> = listOf(
+        string(R.string.about_intro),
+        string(R.string.about_source_code),
+        string(R.string.about_issues),
+        string(R.string.about_support),
+    )
 
     private fun initLocalModel(): Boolean {
         val modelName = prefs().getString("model_name", "")
@@ -110,11 +226,27 @@ class MainActivity : AppCompatActivity() {
         thread {
             val success = initLocalModel()
             if (success) setStatus(R.string.status_active_model, model.name)
-            refresh()
+            refreshHome()
         }
     }
 
-    private fun refresh() {
+    /** Avvia il download del modello (come foreground service). */
+    private fun onDownload(id: String) {
+        val model = MODEL_CATALOG.find { it.id == id } ?: return
+        ModelDownloadRepository.mark(id, DownloadPhase.Downloading(0f, null))
+        if (needsNotificationPermission()) {
+            pendingModel = model
+            notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            ModelDownloadService.start(this, model)
+        }
+    }
+
+    private fun needsNotificationPermission(): Boolean =
+        Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+
+    private fun refreshHome() {
         val activeModel = prefs().getString("model_name", "")
         installedModels = MODEL_CATALOG
             .filter { ModelDownloader.isInstalled(this, it) }
@@ -131,6 +263,18 @@ class MainActivity : AppCompatActivity() {
         infoText = if (MODEL_CATALOG.any { ModelDownloader.isInstalled(this, it) })
             string(R.string.info_model_ready)
         else string(R.string.info_no_model)
+    }
+
+    private fun refreshCatalog() {
+        rows = MODEL_CATALOG
+            .filterNot { ModelDownloader.isInstalled(this, it) }
+            .map {
+                CatalogModelRow(
+                    id = it.id,
+                    name = it.name,
+                    sizeText = string(R.string.model_size_mb, string(it.qualityRes), it.sizeMb),
+                )
+            }
     }
 
     private fun deleteModel(id: String) {
@@ -163,7 +307,8 @@ class MainActivity : AppCompatActivity() {
             } else {
                 setStatus(R.string.status_model_removed, model.name)
             }
-            refresh()
+            refreshHome()
+            refreshCatalog()
         }
     }
 

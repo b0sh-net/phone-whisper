@@ -25,16 +25,6 @@
         </activity>
 
         <activity
-            android:name=".AboutActivity"
-            android:exported="false"
-            android:label="@string/about_title" />
-
-        <activity
-            android:name=".ModelCatalogActivity"
-            android:exported="false"
-            android:label="@string/section_downloadable_models" />
-
-        <activity
             android:name=".IntroActivity"
             android:exported="false"
             android:label="@string/intro_title" />

@@ -16,6 +16,17 @@ It supports:
 
 ## Changelog
 
+### v0.9.9 (2026-09-13) — internal release
+- **Jetpack Compose (Material 3) UI**: the whole interface has been migrated from programmatic Android Views to Jetpack Compose with a Material 3 theme (light/dark), reusing the existing color palette.
+- **Bottom navigation bar**: navigation now uses a fixed Material `NavigationBar` at the bottom with 3 destinations — **Home**, **Catalog** and **More info** — each with a Material Symbols Outlined icon. The active tab is highlighted in light blue (primary), the inactive ones are gray. This replaces the previous button/Activity-based navigation.
+- **Background downloads (foreground service)**: model downloads keep running even after leaving the catalog (system Back), via a `dataSync` foreground service with a progress notification. When a download finishes in the background, the installed-model list and the catalog refresh automatically.
+- **Fix: app freeze (ANR) when pressing Back during a download**: download progress for the main thread is now throttled to whole percentages, removing the main-thread message flood that previously caused the app to freeze and close.
+- **Fix: auto-select model after removal**: removing the currently selected model now automatically selects the first remaining installed model.
+- **Fix: inactive links in "More info"**: the GitHub and Issues links in the "More info" screen open the browser again (previously they stopped working after the Compose migration and could show raw HTML).
+- **Fix: main screen in landscape**: the title and the info text stay fixed; the status panel and the installed models now scroll vertically.
+- **Material Symbols Outlined icons**: the download button (previously a plain "↓" character) and the model-remove button (previously an emoji) now use proper Material Symbols Outlined icons.
+- **Version bump**: 0.9.4 -> 0.9.9 (versionCode 22).
+
 ### v0.9.4 (2026-09-10)
 - **Fix: Kroko Italiano crash on load**: fixed a native crash when loading the Kroko 128l Italian model. The model is a *streaming* (online) ASR model, but the app was loading it with the offline recognizer. `LocalTranscriber` now detects streaming models automatically (by scanning the encoder graph for recurrent cache states) and loads them with the streaming recognizer, following the sherpa-onnx online ASR pattern (tail padding + `inputFinished` + decode loop).
 - **Fix: download progress for archived models**: restored the intermediate download percentage for archive-based models (e.g. Moonshine). A regression from v0.9.3 made the progress jump from 0% to 100% without intermediate values, because the progress relied on a HEAD request that GitHub release assets answer with a redirect and no content length. Progress is now computed from the final GET response, with the HEAD probe kept only as a fallback.
