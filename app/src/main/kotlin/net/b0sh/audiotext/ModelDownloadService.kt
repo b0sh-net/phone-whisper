@@ -44,6 +44,12 @@ class ModelDownloadService : Service() {
 
     private val handler = Handler(Looper.getMainLooper())
 
+    /** Ultima percentuale intera inoltrata al main thread. ModelDownloader legge
+     *  in buffer da 16KB e segnala il progresso ad ogni chunk: senza throttling
+     *  il main thread verrebbe inondato di messaggi (notifica + stato Compose)
+     *  fino all'ANR. Aggiorniamo quindi solo a ogni percentuale intera. */
+    private var lastEmittedPercent = -1
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -66,44 +72,59 @@ class ModelDownloadService : Service() {
         ModelDownloadRepository.mark(modelId, DownloadPhase.Downloading(0f, null))
         startForeground(notifId, notification(model.name, null))
 
-        // ModelDownloader gestisce il proprio thread: qui lo avviamo e
-        // aggiorniamo notifica/stato dai callback.
+        // ModelDownloader gestisce il proprio thread: qui lo avviamo.
+        // onDownloadState esegue il throttling del progresso e posta al main
+        // thread solo gli update davvero rilevanti (al più ~101 per download).
         thread {
             ModelDownloader.download(this, model) { state ->
-                handler.post { onDownloadState(model, notifId, state) }
+                onDownloadState(model, notifId, state)
             }
         }
         return START_NOT_STICKY
     }
 
+    /** Eseguito sul thread di download: seleziona gli update da inoltrare al
+     *  main thread, così da non inondarne la coda con un callback per ogni
+     *  chunk di 16KB letto. */
     private fun onDownloadState(model: Model, notifId: Int, state: DownloadState) {
         when (state) {
             is DownloadState.Downloading -> {
+                val percent = (state.progress * 100).toInt().coerceIn(0, 100)
+                if (percent == lastEmittedPercent) return
+                lastEmittedPercent = percent
                 val phase = DownloadPhase.Downloading(state.progress, state.currentFile)
-                ModelDownloadRepository.mark(model.id, phase)
-                updateNotification(model, phase)
+                handler.post {
+                    ModelDownloadRepository.mark(model.id, phase)
+                    updateNotification(model, phase)
+                }
             }
             is DownloadState.Extracting -> {
                 val phase = DownloadPhase.Extracting(state.currentFile)
-                ModelDownloadRepository.mark(model.id, phase)
-                updateNotification(model, phase)
+                handler.post {
+                    ModelDownloadRepository.mark(model.id, phase)
+                    updateNotification(model, phase)
+                }
             }
-            is DownloadState.Done -> {
-                ModelDownloadRepository.mark(model.id, DownloadPhase.Idle)
-                prefs().edit().putString("model_name", model.id).apply()
-                TranscriberManager.reset()
-                Toast.makeText(this, string(R.string.toast_model_installed, model.name), Toast.LENGTH_SHORT).show()
-                thread { TranscriberManager.getOrCreateTranscriber(applicationContext) }
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-            }
-            is DownloadState.Error -> {
-                ModelDownloadRepository.mark(model.id, DownloadPhase.Idle)
-                Toast.makeText(this, state.message ?: "Unknown error", Toast.LENGTH_LONG).show()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-            }
+            is DownloadState.Done -> handler.post { onDone(model) }
+            is DownloadState.Error -> handler.post { onError(model, state) }
         }
+    }
+
+    private fun onDone(model: Model) {
+        ModelDownloadRepository.mark(model.id, DownloadPhase.Idle)
+        prefs().edit().putString("model_name", model.id).apply()
+        TranscriberManager.reset()
+        Toast.makeText(this, string(R.string.toast_model_installed, model.name), Toast.LENGTH_SHORT).show()
+        thread { TranscriberManager.getOrCreateTranscriber(applicationContext) }
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
+    private fun onError(model: Model, state: DownloadState.Error) {
+        ModelDownloadRepository.mark(model.id, DownloadPhase.Idle)
+        Toast.makeText(this, state.message ?: "Unknown error", Toast.LENGTH_LONG).show()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
     }
 
     private fun updateNotification(model: Model, phase: DownloadPhase) {

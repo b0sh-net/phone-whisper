@@ -143,7 +143,26 @@ class MainActivity : AppCompatActivity() {
         setStatus(R.string.status_removing_model, model.name)
         thread {
             ModelDownloader.delete(this, model)
-            setStatus(R.string.status_model_removed, model.name)
+            if (wasActive) {
+                // Il modello rimosso era quello in uso: riseleziona
+                // automaticamente il primo modello installato rimasto.
+                val replacement = MODEL_CATALOG
+                    .filter { ModelDownloader.isInstalled(this, it) }
+                    .firstOrNull()
+                if (replacement != null) {
+                    prefs().edit().putString("model_name", replacement.id).apply()
+                    TranscriberManager.reset()
+                    val success = initLocalModel()
+                    setStatus(
+                        if (success) R.string.status_active_model else R.string.status_no_local_model,
+                        if (success) replacement.name else "",
+                    )
+                } else {
+                    setStatus(R.string.status_no_local_model)
+                }
+            } else {
+                setStatus(R.string.status_model_removed, model.name)
+            }
             refresh()
         }
     }
