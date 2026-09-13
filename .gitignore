@@ -13,3 +13,7 @@ out/
 *.log
 *.class
 *.iml
+.idea/
+*.jar
+.DS_Store
+Thumbs.db
