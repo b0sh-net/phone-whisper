@@ -16,6 +16,10 @@ It supports:
 
 ## Changelog
 
+### v1.0.0 (2026-09-13) — closed testing
+- **First closed-testing release**: consolidates the work of the 0.9.x line (Jetpack Compose Material 3 UI, bottom navigation bar, background downloads via foreground service, auto model re-selection, landscape scrolling, Material Symbols Outlined icons and all related fixes) into a stable release ready for Google Play **closed testing**.
+- **Version bump**: 0.9.9 -> 1.0.0 (versionCode 23).
+
 ### v0.9.9 (2026-09-13) — internal release
 - **Jetpack Compose (Material 3) UI**: the whole interface has been migrated from programmatic Android Views to Jetpack Compose with a Material 3 theme (light/dark), reusing the existing color palette.
 - **Bottom navigation bar**: navigation now uses a fixed Material `NavigationBar` at the bottom with 3 destinations — **Home**, **Catalog** and **More info** — each with a Material Symbols Outlined icon. The active tab is highlighted in light blue (primary), the inactive ones are gray. This replaces the previous button/Activity-based navigation.
@@ -51,60 +55,11 @@ It supports:
 - **Onboarding guide**: on first launch, the app shows a short introduction with three swipeable screens illustrated by `icon-graphics/intro-{1,2,3}.png`: how to download the model, to wait for the download and installation, and how to transcribe a message. The intro can be reviewed anytime via a button in the "More info" screen. Images are localized per supported language (English and Italian).
 - **Version bump**: 0.8.1 -> 0.9.0 (versionCode 17).
 
-### v0.8.1 (2026-09-02)
-- **Google Play closed testing**: after successful internal testing of v0.8.0, this version is being promoted to the closed testing track.
-- **Version bump**: 0.8.0 -> 0.8.1 (versionCode 16).
-
-### v0.8.0 (2026-09-02)
-- **Remove downloaded models**: installed models can now be removed from the catalog, freeing device space. The model can always be downloaded again.
-- **All architectures**: the app now ships with native libraries for all supported ABIs (arm64-v8a, armeabi-v7a, x86, x86_64) instead of arm64-only, extending device compatibility.
-- **Version bump**: 0.7.0 -> 0.8.0 (versionCode 15).
-
-### v0.7.0 (2026-08-29)
-- **Google Play closed testing**: after successful internal testing, this version is being promoted to the closed testing track.
-- **Version bump**: 0.6.6 -> 0.7.0 (versionCode 14).
-
-### v0.6.6 (2026-08-29)
-- **UI fixes**: the "More info" button on the main screen now uses the same outlined style and margins as the "Close" button of the About screen; the About screen title was lowered to avoid overlapping the system status bar; the transcription result box now uses the dark frame in dark mode, fixing text/background contrast.
-- **Version bump**: 0.6.5 -> 0.6.6 (versionCode 13).
-
-### v0.6.5 (2026-08-29)
-- **About screen**: added a "More info" button on the main screen leading to a new screen with a general description of the project (a personal experiment, published as open source), a link to the GitHub repository (https://github.com/b0sh-net/phone-whisper), and a note that the Issues feature can be used to report problems or get information. The screen states that, being developed in spare time and without profit, no minimum level of support is guaranteed.
-- **Version bump**: 0.6.4 -> 0.6.5 (versionCode 12).
-
-### v0.6.4 (2026-08-28)
-- **Target SDK 36 (Android 16)**: compileSdk and targetSdk updated to 36.
-- **Version bump**: 0.6.3 -> 0.6.4 (versionCode 11).
-
-### v0.6.3 (2026-08-27)
-- **Google Play closed testing**: the app is now available for testing on Google Play (https://play.google.com/store/apps/details?id=net.b0sh.audiotext). Looking for testers — join the testers Google Group at https://groups.google.com/g/testers-community.
-- **Version bump**: 0.6.2 -> 0.6.3 (versionCode 10).
-
-### v0.6.1 (2026-08-25)
-- **Multilingual UI**: the app now supports English and Italian, following the device language. The app name (Audio To Text) and model names are not translated.
-- **Version bump**: 0.6.0 -> 0.6.1 (versionCode 8).
-
-### v0.6.0 (2026-08-25)
-- **Removed OpenAI integration**: cloud transcription and post-processing have been removed. The app now only supports local on-device transcription with downloaded sherpa-onnx models.
-- **Rebrand**: app renamed to **Audio To Text**, package moved to `net.b0sh.audiotext`.
-- **Version bump**: 0.5.0 -> 0.6.0 (versionCode 7).
-
-### v0.5.0 (2026-04-20)
-- **Separated Transcription UI from Settings**: Created a dedicated `TranscribeActivity` for audio transcription, launched automatically when sharing an audio file via the "Share" menu.
-- **Refactored MainActivity**: Removed all transcription logic. It now serves exclusively as the settings panel (engine selection, model catalog, API key).
-- **Added TranscriberManager singleton**: Shares the `LocalTranscriber` instance between activities so that model changes in settings persist without re-downloading on each transcription session.
-- **Updated Intent filters**: Moved `ACTION_SEND` and `ACTION_SEND_MULTIPLE` filters to `TranscribeActivity`.
-- **Version bump**: 0.4.4 -> 0.5.0 (versionCode 7).
-
-### v0.4.4 (2026-04-19)
-- **Fixed Model Corruption**: Implemented atomic extraction (extract to temp dir, then move) to prevent loading incomplete/corrupted models if the download or extraction process is interrupted.
-- **Improved Installation Validation**: The app now verifies the presence of essential model files before considering a model "installed".
-- **Enhanced AAR Compatibility**: Refactored `LocalTranscriber` to align with the `sherpa-onnx` AAR's Kotlin data classes and constructor signatures, resolving runtime `NoSuchMethodError`.
-- **Version bump**: 0.4.3 -> 0.4.4 (versionCode 6).
-
-### v0.4.1
-- **Fixed Local Transcription Failure**: Resolved model detection logic and lazily loading transcribers.
-- **Fixed Model Download UI**: Completion status now properly reflects "installed" without app restart.
+### Pre-0.9.0 — Historical summary
+- **From push-to-talk to audio sharing**: the app evolved from a push-to-talk dictation tool (Accessibility Service) into an app that transcribes audio files shared via the "Share" menu, decoding MP3/M4A/AAC/WAV to PCM with MediaCodec and transcribing locally with sherpa-onnx (Moonshine, Whisper, NeMo).
+- **Local-only transcription & rebrand**: cloud/OpenAI transcription was removed and the app was renamed to **Audio To Text** (package `net.b0sh.audiotext`).
+- **Separated transcription UI**: a dedicated `TranscribeActivity` share-target and the `TranscriberManager` singleton; robust model installs with atomic extraction and installation validation.
+- **UX & platform**: "More info"/About screen and UI fixes, multilingual UI (EN/IT), model removal, support for all ABIs, target SDK 36, and the first availability and promotions on Google Play closed testing.
 
 ## How it works
 
