@@ -43,10 +43,9 @@
     <string name="info_model_ready">Utilizza la funzione Condividi selezionando Audio To Text come destinatario della condivisione. La trascrizione avverrà immediatamente.</string>
 
     <!-- Model quality labels (model names are not translated) -->
-    <string name="quality_best_value">★★★ Miglior rapporto qualità/prezzo</string>
-    <string name="quality_three">★★★</string>
-    <string name="quality_best_quality">★★★★ Qualità migliore</string>
-    <string name="quality_fast">★★☆ Veloce</string>
+    <string name="quality_best_quality">★★★★ Qualità migliore multilingua</string>
+    <string name="quality_best_lang">★★★ Qualità migliore per la lingua selezionata</string>
+    <string name="quality_two_stars">★★</string>
     <string name="model_size_mb">%1$s · %2$d MB</string>
 
     <!-- Intro (onboarding) activity -->

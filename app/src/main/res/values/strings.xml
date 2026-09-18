@@ -43,10 +43,9 @@
     <string name="info_model_ready">Use the Share function by selecting Audio To Text as the sharing destination. Transcription will start immediately.</string>
 
     <!-- Model quality labels (model names are not translated) -->
-    <string name="quality_best_value">★★★ Best value</string>
-    <string name="quality_three">★★★</string>
-    <string name="quality_best_quality">★★★★ Best quality</string>
-    <string name="quality_fast">★★☆ Fast</string>
+    <string name="quality_best_quality">★★★★ Best multilingual quality</string>
+    <string name="quality_best_lang">★★★ Best quality for the selected language</string>
+    <string name="quality_two_stars">★★</string>
     <string name="model_size_mb">%1$s · %2$d MB</string>
 
     <!-- Intro (onboarding) activity -->

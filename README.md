@@ -16,6 +16,10 @@ It supports:
 
 ## Changelog
 
+### v1.0.1 (2026-09-18)
+- **Catalog quality labels**: the catalog now shows clearer quality labels — Parakeet 0.6B (multilingual) is marked "★★★★ Best multilingual quality", the per-language Kroko models are marked "★★★ Best quality for the selected language", and the remaining models show "★★".
+- **Version bump**: 1.0.0 -> 1.0.1 (versionCode 24).
+
 ### v1.0.0 (2026-09-13) — closed testing
 - **First closed-testing release**: consolidates the work of the 0.9.x line (Jetpack Compose Material 3 UI, bottom navigation bar, background downloads via foreground service, auto model re-selection, landscape scrolling, Material Symbols Outlined icons and all related fixes) into a stable release ready for Google Play **closed testing**.
 - **Version bump**: 0.9.9 -> 1.0.0 (versionCode 23).
