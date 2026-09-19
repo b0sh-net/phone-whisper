@@ -34,6 +34,7 @@
     <string name="delete_model_message">Rimuovere %1$s? Verranno liberati circa %2$d MB di spazio sul dispositivo. Il modello potrà essere scaricato di nuovo in qualsiasi momento.</string>
     <string name="action_delete">Elimina</string>
     <string name="action_cancel">Annulla</string>
+    <string name="action_switching_model">Cambio del modello in corso…</string>
     <string name="status_removing_model">Rimozione del modello: %1$s</string>
     <string name="status_model_removed">Modello rimosso: %1$s</string>
 

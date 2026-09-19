@@ -65,6 +65,11 @@ class MainActivity : AppCompatActivity() {
     private var infoText by mutableStateOf("")
     private var installedModels by mutableStateOf<List<InstalledModelRow>>(emptyList())
 
+    // Id del modello per cui è in corso il cambio (selezione). Mentre è non-null
+    // le ulteriori richieste di cambio vengono ignorate, così un cambio non
+    // viene interrotto da un altro.
+    private var switchingModelId by mutableStateOf<String?>(null)
+
     // Stato catalogo
     private var rows by mutableStateOf<List<CatalogModelRow>>(emptyList())
 
@@ -172,6 +177,7 @@ class MainActivity : AppCompatActivity() {
                             statusIconRes = statusIconRes,
                             installedModels = installedModels,
                         ),
+                        switchingModelId = switchingModelId,
                         onSelectModel = ::selectModel,
                         onDeleteModel = ::deleteModel,
                     )
@@ -220,13 +226,22 @@ class MainActivity : AppCompatActivity() {
 
     /** Seleziona il modello installato da usare per la trascrizione. */
     private fun selectModel(id: String) {
+        // Ignora ulteriori richieste di cambio mentre una selezione è già in corso.
+        val switching = switchingModelId
+        if (switching != null) return
+
         val model = MODEL_CATALOG.find { it.id == id } ?: return
+        switchingModelId = id
         prefs().edit().putString("model_name", model.id).apply()
         TranscriberManager.reset()
         thread {
-            val success = initLocalModel()
-            if (success) setStatus(R.string.status_active_model, model.name)
-            refreshHome()
+            try {
+                val success = initLocalModel()
+                if (success) setStatus(R.string.status_active_model, model.name)
+                refreshHome()
+            } finally {
+                switchingModelId = null
+            }
         }
     }
 

@@ -46,13 +46,28 @@ class LocalTranscriber private constructor(
     private fun transcribeStreaming(recognizer: OnlineRecognizer, samples: FloatArray, sampleRate: Int): String {
         val stream = recognizer.createStream()
 
-        // Feed the entire audio, then add tail padding and signal end of input
+        // Feed the entire audio, then add tail padding and signal end of input.
+        // The padding is APPENDED to the real samples (sherpa-onnx always appends
+        // into the feature extractor, it never overwrites earlier audio). It exists
+        // to give the streaming model enough right context to flush the FINAL chunk
+        // containing the last words of the utterance: without it, the last few
+        // frames sit at the edge where IsReady() turns false before being decoded,
+        // so the trailing words are dropped.
+        //
+        // 0.5s is too short for that — sherpa-onnx's own references all use more:
+        //   - official online-decode-files.py ........... 0.66s
+        //   - C++ streaming server (web socket) ......... 0.8s
+        //   - ALSA streaming demo ....................... 1.0s ("so the last
+        //     character can be recognized")
+        // We follow the streaming server and use 0.8s. It is pure silence so it can
+        // never corrupt the output; it only guarantees the final speech is flushed.
         stream.acceptWaveform(samples, sampleRate)
-        val tail = FloatArray(sampleRate / 2) { 0f }  // 0.5s of silence
+        val tail = FloatArray((sampleRate * TRAILING_SILENCE_SECONDS).toInt()) { 0f }
         stream.acceptWaveform(tail, sampleRate)
         stream.inputFinished()
 
-        // Decode until the stream has consumed everything
+        // Decode until the stream has consumed everything (matches the reference
+        // `while recognizer.is_ready(s): recognize.decode_streams([s])` pattern).
         while (recognizer.isReady(stream)) {
             recognizer.decode(stream)
         }
@@ -64,6 +79,10 @@ class LocalTranscriber private constructor(
 
     companion object {
         private const val TAG = "LocalTranscriber"
+
+        /** Seconds of trailing silence appended before end-of-input, so the
+         *  streaming model can flush the last words (see transcribeStreaming). */
+        private const val TRAILING_SILENCE_SECONDS = 0.8f
 
         /** Find available model dirs under the app's files/models/ dir */
         fun availableModels(ctx: Context): List<String> {

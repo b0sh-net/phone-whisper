@@ -59,6 +59,7 @@ data class MainScreenUiState(
 @Composable
 fun MainScreen(
     state: MainScreenUiState,
+    switchingModelId: String?,
     onSelectModel: (String) -> Unit,
     onDeleteModel: (String) -> Unit,
 ) {
@@ -120,11 +121,16 @@ fun MainScreen(
 
             // Installed models: scorrono insieme allo stato
             state.installedModels.forEach { row ->
+                // Durante un cambio di modello tutti i selettori mostrano
+                // l'ora (hourglass) e i tocchi sul cambio vengono ignorati.
+                val switching = switchingModelId != null
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onSelectModel(row.id) }
+                        .clickable(enabled = !switching) {
+                            onSelectModel(row.id)
+                        }
                         .padding(vertical = 8.dp),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -144,8 +150,9 @@ fun MainScreen(
                             )
                         },
                     )
-                    RadioButton(
-                        selected = row.isActive,
+                    selectIcon(
+                        switching = switching,
+                        active = row.isActive,
                         onClick = { onSelectModel(row.id) },
                     )
                 }
@@ -187,6 +194,33 @@ private fun statusIcon(@DrawableRes iconRes: Int) {
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .padding(10.dp),
+        )
+    }
+}
+
+/**
+ * Selettore del modello attivo nella schermata Home. Normalmente mostra il
+ * RadioButton (pallino) che evidenzia il modello selezionato; mentre un cambio
+ * di modello è in corso ([switching] == true) lo sostituisce con l'icona
+ * "hourglass_pause" e disabilita il tocco, finché l'operazione non termina.
+ */
+@Composable
+private fun selectIcon(
+    switching: Boolean,
+    active: Boolean,
+    onClick: () -> Unit,
+) {
+    if (switching) {
+        Icon(
+            painter = painterResource(R.drawable.ic_hourglass_pause),
+            contentDescription = stringResource(R.string.action_switching_model),
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+    } else {
+        RadioButton(
+            selected = active,
+            onClick = onClick,
         )
     }
 }

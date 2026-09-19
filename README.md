@@ -16,6 +16,11 @@ It supports:
 
 ## Changelog
 
+### v1.0.2 (2026-09-19)
+- **Transcription no longer drops the last words**: increased the tail padding of streaming models (Kroko) from 0.5s to 0.8s. The padding is always *added after* the real samples (sherpa-onnx always appends, never overwrites), but 0.5s was too short to give the model the right context needed to flush the final chunk — the last words could stay undecoded. Now it uses 0.8s, matching sherpa-onnx's official streaming server.
+- **Home: double-tap-proof model switching**: while a model switch is in progress, further taps on the switch are ignored until the operation completes. During the switch all the radio buttons in Home show the Material Symbol "hourglass_pause" icon instead of the dot.
+- **Version bump**: 1.0.1 -> 1.0.2 (versionCode 25).
+
 ### v1.0.1 (2026-09-18)
 - **Catalog quality labels**: the catalog now shows clearer quality labels — Parakeet 0.6B (multilingual) is marked "★★★★ Best multilingual quality", the per-language Kroko models are marked "★★★ Best quality for the selected language", and the remaining models show "★★".
 - **Version bump**: 1.0.0 -> 1.0.1 (versionCode 24).
