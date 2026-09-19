@@ -46,33 +46,42 @@ object AudioDecoder {
 
         val pcmData = mutableListOf<Short>()
         val info = MediaCodec.BufferInfo()
-        var isEOS = false
-        
+        var inputDone = false
+        var outputDone = false
+        val channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+
         val inputBuffers = codec.inputBuffers
         val outputBuffers = codec.outputBuffers
 
-        while (!isEOS) {
-            val inIndex = codec.dequeueInputBuffer(10000)
-            if (inIndex >= 0) {
-                val buffer = inputBuffers[inIndex]
-                val sampleSize = extractor.readSampleData(buffer, 0)
-                if (sampleSize < 0) {
-                    codec.queueInputBuffer(inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-                    isEOS = true
-                } else {
-                    codec.queueInputBuffer(inIndex, 0, sampleSize, extractor.sampleTime, 0)
-                    extractor.advance()
+        // Il loop prosegue finché il decoder non segnala EOS anche in OUTPUT.
+        // È essenziale: quando si accoda l'EOS in input possono restare in coda
+        // output non ancora prodotti (in particolare l'ultimo chunk di audio reale).
+        // Fermarsi all'EOS di input e chiamare subito codec.stop() scarterebbe
+        // quegli output -> l'audio finale (e le ultime parole) andrebbe perso.
+        while (!outputDone) {
+            // Alimenta il decoder finché non è stato accodato l'EOS di input.
+            if (!inputDone) {
+                val inIndex = codec.dequeueInputBuffer(10000)
+                if (inIndex >= 0) {
+                    val buffer = inputBuffers[inIndex]
+                    val sampleSize = extractor.readSampleData(buffer, 0)
+                    if (sampleSize < 0) {
+                        codec.queueInputBuffer(inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                        inputDone = true
+                    } else {
+                        codec.queueInputBuffer(inIndex, 0, sampleSize, extractor.sampleTime, 0)
+                        extractor.advance()
+                    }
                 }
             }
 
-            var outIndex = codec.dequeueOutputBuffer(info, 10000)
-            while (outIndex >= 0) {
+            val outIndex = codec.dequeueOutputBuffer(info, 10000)
+            if (outIndex >= 0) {
                 val buffer = outputBuffers[outIndex]
                 val chunk = ShortArray(info.size / 2)
                 buffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(chunk)
-                
+
                 // Basic mono conversion if needed (if output was stereo)
-                val channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
                 if (channels == 2) {
                     for (i in 0 until chunk.size / 2) {
                         pcmData.add(chunk[i * 2])
@@ -81,8 +90,9 @@ object AudioDecoder {
                     for (s in chunk) pcmData.add(s)
                 }
 
+                val eos = info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
                 codec.releaseOutputBuffer(outIndex, false)
-                outIndex = codec.dequeueOutputBuffer(info, 0)
+                if (eos) outputDone = true
             }
         }
 

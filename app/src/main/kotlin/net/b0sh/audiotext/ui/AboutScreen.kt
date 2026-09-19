@@ -39,6 +39,7 @@ import net.b0sh.audiotext.R
 @Composable
 fun AboutScreen(
     paragraphs: List<String>,
+    versionName: String,
     onReviewIntro: () -> Unit,
 ) {
     Column(
@@ -56,6 +57,13 @@ fun AboutScreen(
         )
 
         paragraphs.forEach { aboutParagraph(it) }
+
+        Text(
+            text = stringResource(R.string.about_installed_version, versionName),
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 16.dp),
+        )
 
         OutlinedButton(
             onClick = onReviewIntro,

@@ -16,8 +16,13 @@ It supports:
 
 ## Changelog
 
+### v1.0.3 (2026-09-19)
+- **Transcription no longer drops the last words (final fix)**: the streaming-model (Kroko Zipformer2) tail padding is raised to 2.0s. Empirical testing on the reference file showed that 1.0s and 1.5s still dropped the final words (the streaming model's last chunk needs more right-context after the final audio to be decoded), while 2.0s always transcribes them fully. It is pure silence added after the real samples: it can only guarantee the final flush, never corrupt the output.
+- **Decoder: full drain until output EOS**: the MediaCodec loop in `AudioDecoder` now keeps going until the decoder signals EOS on *output*, draining the last queued chunks, instead of stopping at the input EOS and calling `stop()` right away (which could discard the final audio).
+- **"More info" screen: installed version**: at the bottom of the screen now shows "Installed version: <versionName>", read at runtime from the PackageManager (no version duplication in the code).
+- **Version bump**: 1.0.2 -> 1.0.3 (versionCode 26).
+
 ### v1.0.2 (2026-09-19)
-- **Transcription no longer drops the last words**: increased the tail padding of streaming models (Kroko) from 0.5s to 0.8s. The padding is always *added after* the real samples (sherpa-onnx always appends, never overwrites), but 0.5s was too short to give the model the right context needed to flush the final chunk — the last words could stay undecoded. Now it uses 0.8s, matching sherpa-onnx's official streaming server.
 - **Home: double-tap-proof model switching**: while a model switch is in progress, further taps on the switch are ignored until the operation completes. During the switch all the radio buttons in Home show the Material Symbol "hourglass_pause" icon instead of the dot.
 - **Version bump**: 1.0.1 -> 1.0.2 (versionCode 25).
 

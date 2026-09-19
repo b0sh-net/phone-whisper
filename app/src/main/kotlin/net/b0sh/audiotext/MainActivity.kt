@@ -190,6 +190,7 @@ class MainActivity : AppCompatActivity() {
                     )
                     Tab.About -> AboutScreen(
                         paragraphs = aboutParagraphs(),
+                        versionName = installedVersionName(),
                         onReviewIntro = {
                             startActivity(
                                 Intent(this@MainActivity, IntroActivity::class.java)
@@ -208,6 +209,15 @@ class MainActivity : AppCompatActivity() {
         string(R.string.about_issues),
         string(R.string.about_support),
     )
+
+    /** Versione installata dell'app, letta dal PackageManager (coincide con
+     *  `versionName` in build.gradle.kts). */
+    private fun installedVersionName(): String =
+        try {
+            packageManager.getPackageInfo(packageName, 0).versionName ?: ""
+        } catch (e: PackageManager.NameNotFoundException) {
+            ""
+        }
 
     private fun initLocalModel(): Boolean {
         val modelName = prefs().getString("model_name", "")

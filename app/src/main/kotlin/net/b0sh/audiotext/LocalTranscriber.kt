@@ -25,7 +25,8 @@ class LocalTranscriber private constructor(
     /**
      * Transcribe raw PCM float samples. Blocking — call from background thread.
      * For streaming models, follows the sherpa-onnx pattern: feed the whole audio,
-     * add 0.5s of tail padding, signal end of input, then decode until ready.
+     * add TRAILING_SILENCE_SECONDS of tail padding, signal end of input, then
+     * decode until ready. Offline models also get the same (harmless) tail padding.
      */
     fun transcribe(samples: FloatArray, sampleRate: Int = 16000): String {
         if (streamingRecognizer != null) {
@@ -37,6 +38,8 @@ class LocalTranscriber private constructor(
     private fun transcribeOffline(recognizer: OfflineRecognizer, samples: FloatArray, sampleRate: Int): String {
         val stream = recognizer.createStream()
         stream.acceptWaveform(samples, sampleRate)
+        val tail = FloatArray((sampleRate * TRAILING_SILENCE_SECONDS).toInt()) { 0f }
+        stream.acceptWaveform(tail, sampleRate)
         recognizer.decode(stream)
         val result = recognizer.getResult(stream)
         stream.release()
@@ -59,8 +62,10 @@ class LocalTranscriber private constructor(
         //   - C++ streaming server (web socket) ......... 0.8s
         //   - ALSA streaming demo ....................... 1.0s ("so the last
         //     character can be recognized")
-        // We follow the streaming server and use 0.8s. It is pure silence so it can
-        // never corrupt the output; it only guarantees the final speech is flushed.
+        // Empirical finding on Kroko 128l Italian (Zipformer2 streaming): 1.0s and
+        // 1.5s still dropped the final words; 2.0s transcribed them fully. We keep
+        // 2.0s. It is pure silence so it can never corrupt the output, only
+        // guarantees the final speech is flushed.
         stream.acceptWaveform(samples, sampleRate)
         val tail = FloatArray((sampleRate * TRAILING_SILENCE_SECONDS).toInt()) { 0f }
         stream.acceptWaveform(tail, sampleRate)
@@ -82,7 +87,7 @@ class LocalTranscriber private constructor(
 
         /** Seconds of trailing silence appended before end-of-input, so the
          *  streaming model can flush the last words (see transcribeStreaming). */
-        private const val TRAILING_SILENCE_SECONDS = 0.8f
+        private const val TRAILING_SILENCE_SECONDS = 2.0f
 
         /** Find available model dirs under the app's files/models/ dir */
         fun availableModels(ctx: Context): List<String> {

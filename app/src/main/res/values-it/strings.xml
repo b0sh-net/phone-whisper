@@ -60,6 +60,7 @@
     <string name="about_source_code">Il progetto è open source: il codice sorgente è disponibile su &lt;a href="https://github.com/b0sh-net/phone-whisper"&gt;GitHub&lt;/a&gt;.</string>
     <string name="about_issues">Per qualsiasi problema, feedback o informazione puoi utilizzare la funzionalità &lt;a href="https://github.com/b0sh-net/phone-whisper/issues"&gt;Issues&lt;/a&gt; del repository.</string>
     <string name="about_support">Questa applicazione è sviluppata nel tempo libero e senza alcun fine di lucro: non è garantito nessun livello minimo di assistenza.</string>
+    <string name="about_installed_version">Versione installata: %1$s</string>
 
     <!-- Transcribe activity -->
     <string name="transcribe_activity_label">Audio To Text: Trascrizione</string>
