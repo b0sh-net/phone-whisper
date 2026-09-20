@@ -16,6 +16,10 @@ It supports:
 
 ## Changelog
 
+### v1.0.4 (2026-09-20)
+- **Onboarding: full-height images in portrait**: the intro illustrations are no longer limited by the screen width. Each image now uses all the available vertical space (its width is derived from the height keeping aspect ratio) and, when it ends up wider than the screen — typical in portrait, since the intros are landscape — you can scroll right to see the part that does not fit, via an inner horizontal scroll. The dots under the image are now tappable to switch pages (the image's horizontal scroll coexists with the pager swipe).
+- **Version bump**: 1.0.3 -> 1.0.4 (versionCode 27).
+
 ### v1.0.3 (2026-09-19)
 - **Transcription no longer drops the last words (final fix)**: the streaming-model (Kroko Zipformer2) tail padding is raised to 2.0s. Empirical testing on the reference file showed that 1.0s and 1.5s still dropped the final words (the streaming model's last chunk needs more right-context after the final audio to be decoded), while 2.0s always transcribes them fully. It is pure silence added after the real samples: it can only guarantee the final flush, never corrupt the output.
 - **Decoder: full drain until output EOS**: the MediaCodec loop in `AudioDecoder` now keeps going until the decoder signals EOS on *output*, draining the last queued chunks, instead of stopping at the input EOS and calling `stop()` right away (which could discard the final audio).
