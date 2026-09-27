@@ -21,8 +21,8 @@ android {
         applicationId = "net.b0sh.audiotext"
         minSdk = 30
         targetSdk = 36
-        versionCode = 27
-        versionName = "1.0.4"
+        versionCode = 28
+        versionName = "1.0.5"
     }
 
     signingConfigs {
@@ -36,7 +36,11 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             signingConfig = signingConfigs.getByName("release")
         }
     }

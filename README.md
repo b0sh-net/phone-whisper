@@ -16,6 +16,10 @@ It supports:
 
 ## Changelog
 
+### v1.0.5 (2026-09-27)
+- **Release signing: R8 code shrinking and obfuscation enabled**: the `release` build type now uses R8 for bytecode minification (`isMinifyEnabled = true`) with a dedicated `proguard-rules.pro` file that preserves JNI, sherpa-onnx classes, Kotlin/Compose, OkHttp and Apache Commons Compress.
+- **Version bump**: 1.0.4 -> 1.0.5 (versionCode 28).
+
 ### v1.0.4 (2026-09-20)
 - **Onboarding: full-height images in portrait**: the intro illustrations are no longer limited by the screen width. Each image now uses all the available vertical space (its width is derived from the height keeping aspect ratio) and, when it ends up wider than the screen — typical in portrait, since the intros are landscape — you can scroll right to see the part that does not fit, via an inner horizontal scroll. The dots under the image are now tappable to switch pages (the image's horizontal scroll coexists with the pager swipe).
 - **Version bump**: 1.0.3 -> 1.0.4 (versionCode 27).
