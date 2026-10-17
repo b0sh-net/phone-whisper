@@ -21,8 +21,9 @@ android {
         applicationId = "net.b0sh.audiotext"
         minSdk = 30
         targetSdk = 36
-        versionCode = 29
-        versionName = "1.1.0"
+        versionCode = 30
+        versionName = "1.2.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -75,4 +76,10 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation("junit:junit:4.13.2")
+
+    // AndroidTest / Compose UI tests (Constitution IV)
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.03"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }

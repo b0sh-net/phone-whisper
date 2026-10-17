@@ -81,4 +81,24 @@
     <string name="status_local_model_error">Local model error</string>
     <string name="error_local_model_not_ready">Local model not ready. Check that a model is downloaded in the app settings.</string>
     <string name="status_finished">Finished</string>
+
+    <!-- Live transcription -->
+    <string name="bottom_nav_live">Live</string>
+    <string name="live_title">Live transcription</string>
+    <string name="live_start">Start</string>
+    <string name="live_stop">Stop</string>
+    <string name="live_recording">Recording…</string>
+    <string name="live_requires_streaming_model">Live transcription requires a model that supports streaming. Select a streaming model (e.g. Kroko).</string>
+    <string name="live_archive">Archive</string>
+    <string name="live_archive_title">Saved transcriptions</string>
+    <string name="live_archive_empty">No saved transcriptions.</string>
+    <string name="live_action_review">Review</string>
+    <string name="live_action_share">Share</string>
+    <string name="live_action_delete">Delete</string>
+    <string name="live_delete_title">Delete transcription</string>
+    <string name="live_delete_message">Delete this transcription? This cannot be undone.</string>
+    <string name="live_error_permission_denied">Microphone permission is required for live transcription.</string>
+    <string name="live_error_mic_busy">Microphone unavailable. Close other apps using it and try again.</string>
+    <string name="live_error_generic">Live transcription failed. Please try again.</string>
+    <string name="live_error_no_streaming_model">No streaming model available. Select a streaming model to transcribe live.</string>
 </resources>

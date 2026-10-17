@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,6 +36,8 @@ import net.b0sh.audiotext.ui.CatalogModelRow
 import net.b0sh.audiotext.ui.CatalogScreenState
 import net.b0sh.audiotext.ui.DownloadPhase
 import net.b0sh.audiotext.ui.InstalledModelRow
+import net.b0sh.audiotext.ui.LiveArchiveScreen
+import net.b0sh.audiotext.ui.LiveScreen
 import net.b0sh.audiotext.ui.MainScreen
 import net.b0sh.audiotext.ui.MainScreenUiState
 import net.b0sh.audiotext.ui.ModelCatalogScreen
@@ -47,6 +50,7 @@ import kotlinx.coroutines.launch
 private enum class Tab(@StringRes val labelRes: Int, @DrawableRes val iconRes: Int) {
     Home(R.string.bottom_nav_home, R.drawable.ic_home),
     Catalog(R.string.bottom_nav_catalog, R.drawable.ic_catalog),
+    Live(R.string.bottom_nav_live, R.drawable.ic_mic),
     About(R.string.bottom_nav_about, R.drawable.ic_info),
 }
 
@@ -70,6 +74,13 @@ class MainActivity : AppCompatActivity() {
     // viene interrotto da un altro.
     private var switchingModelId by mutableStateOf<String?>(null)
 
+    // Abilitazione della scheda Live: dipende dal modello selezionato (streaming).
+    private var liveEnabled by mutableStateOf(false)
+
+    // Sotto-schermata Live: trascrizione in tempo reale oppure archivio.
+    private var showArchive by mutableStateOf(false)
+    private var archiveItems by mutableStateOf<List<ArchivedTranscript>>(emptyList())
+
     // Stato catalogo
     private var rows by mutableStateOf<List<CatalogModelRow>>(emptyList())
 
@@ -80,12 +91,26 @@ class MainActivity : AppCompatActivity() {
             pendingModel = null
         }
 
+    private val recordAudioPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                LiveTranscriptionController.start(this)
+            } else {
+                LiveTranscriptionController.setError(R.string.live_error_permission_denied)
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Senza un modello installato si parte direttamente dal catalogo.
-        currentTab = if (MODEL_CATALOG.any { ModelDownloader.isInstalled(this, it) })
-            Tab.Home else Tab.Catalog
+        // Ripristino dopo un cambio di configurazione (rotazione): la scheda
+        // attiva e la sotto-schermata archivio non devono andare perse. Alla
+        // prima apertura, senza un modello installato si parte dal catalogo.
+        currentTab = savedInstanceState?.getString(STATE_TAB)
+            ?.let { name -> Tab.entries.firstOrNull { it.name == name } }
+            ?: if (MODEL_CATALOG.any { ModelDownloader.isInstalled(this, it) })
+                Tab.Home else Tab.Catalog
+        showArchive = savedInstanceState?.getBoolean(STATE_ARCHIVE, false) ?: false
 
         setContent {
             AudioToTextTheme {
@@ -94,7 +119,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Onboarding: proponi l'introduzione solo alla prima apertura.
-        if (IntroFlag.shouldShow(prefs())) {
+        if (savedInstanceState == null && IntroFlag.shouldShow(prefs())) {
             startActivity(
                 Intent(this, IntroActivity::class.java)
                     .putExtra(IntroActivity.EXTRA_ORIGIN, IntroActivity.ORIGIN_FIRST_OPEN)
@@ -105,6 +130,7 @@ class MainActivity : AppCompatActivity() {
         thread { initLocalModel() }
         refreshCatalog()
         refreshHome()
+        if (showArchive) archiveItems = LiveTranscriptionController.transcripts(this)
 
         // Un download concluso in background (service): aggiorna lista dei
         // modelli installati (Home) e catalogo, e inizializza il modello.
@@ -132,19 +158,82 @@ class MainActivity : AppCompatActivity() {
         thread { initLocalModel() }
     }
 
+    override fun onStop() {
+        super.onStop()
+        // End the live session on a real background transition, but not on a
+        // configuration change (rotation), which the process singleton survives.
+        if (!isChangingConfigurations) {
+            LiveTranscriptionController.onAppBackgrounded(this)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // Keep the active tab (and the archive sub-screen) across rotations.
+        outState.putString(STATE_TAB, currentTab.name)
+        outState.putBoolean(STATE_ARCHIVE, showArchive)
+    }
+
+    /** Start the live session, requesting the microphone permission when needed. */
+    private fun onLiveStart() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            LiveTranscriptionController.start(this)
+        } else {
+            recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    /** Open the archive sub-screen, loading the saved transcriptions. */
+    private fun openArchive() {
+        archiveItems = LiveTranscriptionController.transcripts(this)
+        showArchive = true
+    }
+
+    /** Delete a saved transcription and refresh the list (FR-012/FR-018). */
+    private fun deleteTranscript(id: Long) {
+        LiveTranscriptionController.deleteTranscript(this, id)
+        archiveItems = LiveTranscriptionController.transcripts(this)
+    }
+
+    /** Share a saved transcription as plain text (FR-014). */
+    private fun shareTranscript(item: ArchivedTranscript) {
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, item.text)
+        }
+        startActivity(Intent.createChooser(send, getString(R.string.live_action_share)))
+    }
+
     @Composable
     private fun MainScaffold() {
-        // Il tasto Back dalle altre schede torna alla Home.
-        BackHandler(enabled = currentTab != Tab.Home) { currentTab = Tab.Home }
+        // Il tasto Back dall'archivio torna alla Live; dalle altre schede torna alla Home.
+        BackHandler(enabled = currentTab != Tab.Home) {
+            if (currentTab == Tab.Live && showArchive) {
+                showArchive = false
+            } else {
+                currentTab = Tab.Home
+            }
+        }
 
         Scaffold(
             bottomBar = {
                 NavigationBar {
                     Tab.entries.forEach { tab ->
                         val selected = currentTab == tab
+                        val liveLocked = tab == Tab.Live && !liveEnabled
                         NavigationBarItem(
                             selected = selected,
-                            onClick = { currentTab = tab },
+                            onClick = {
+                                if (liveLocked) {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        getString(R.string.live_requires_streaming_model),
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                } else {
+                                    currentTab = tab
+                                }
+                            },
                             icon = {
                                 Icon(
                                     painterResource(tab.iconRes),
@@ -152,13 +241,23 @@ class MainActivity : AppCompatActivity() {
                                 )
                             },
                             label = { Text(stringResource(tab.labelRes)) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
+                            colors = if (liveLocked) {
+                                NavigationBarItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                    selectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                    indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                )
+                            } else {
+                                NavigationBarItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
                         )
                     }
                 }
@@ -188,6 +287,24 @@ class MainActivity : AppCompatActivity() {
                         ),
                         onDownload = ::onDownload,
                     )
+                    Tab.Live -> if (showArchive) {
+                        LiveArchiveScreen(
+                            items = archiveItems,
+                            onBack = { showArchive = false },
+                            onShare = ::shareTranscript,
+                            onDelete = ::deleteTranscript,
+                        )
+                    } else {
+                        LiveScreen(
+                            phase = LiveTranscriptionController.phase,
+                            currentText = LiveTranscriptionController.currentText,
+                            archiveAvailable = LiveTranscriptionController.archiveAvailable,
+                            errorMessageRes = LiveTranscriptionController.errorMessageRes,
+                            onStart = ::onLiveStart,
+                            onStop = { LiveTranscriptionController.stop(this@MainActivity) },
+                            onOpenArchive = ::openArchive,
+                        )
+                    }
                     Tab.About -> AboutScreen(
                         paragraphs = aboutParagraphs(),
                         versionName = installedVersionName(),
@@ -242,6 +359,7 @@ class MainActivity : AppCompatActivity() {
 
         val model = MODEL_CATALOG.find { it.id == id } ?: return
         switchingModelId = id
+        LiveTranscriptionController.stop(this)
         prefs().edit().putString("model_name", model.id).apply()
         TranscriberManager.reset()
         thread {
@@ -288,6 +406,7 @@ class MainActivity : AppCompatActivity() {
         infoText = if (MODEL_CATALOG.any { ModelDownloader.isInstalled(this, it) })
             string(R.string.info_model_ready)
         else string(R.string.info_no_model)
+        liveEnabled = LiveTranscriptionController.canUseLive(this)
     }
 
     private fun refreshCatalog() {
@@ -304,6 +423,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun deleteModel(id: String) {
         val model = MODEL_CATALOG.find { it.id == id } ?: return
+        LiveTranscriptionController.stop(this)
         val wasActive = prefs().getString("model_name", "") == model.id
         if (wasActive) {
             prefs().edit().remove("model_name").apply()
@@ -346,4 +466,9 @@ class MainActivity : AppCompatActivity() {
         getString(resId, *args)
 
     private fun prefs() = getSharedPreferences("audiotext", MODE_PRIVATE)
+
+    companion object {
+        private const val STATE_TAB = "live_state_tab"
+        private const val STATE_ARCHIVE = "live_state_archive"
+    }
 }

@@ -14,6 +14,12 @@ It supports:
 
 ## Changelog
 
+### v1.2.0 (2026-10-17)
+- **Live transcription**: a new **Live** tab (between Catalog and Info, microphone icon) transcribes the device microphone in real time using a streaming model. Start opens the microphone and shows the text as it is spoken in a scrollable box; the button becomes Stop. The tab is enabled only when the selected model supports streaming (e.g. Kroko).
+- **Local archive**: every live session that produces text is saved automatically to a local SQLite database, with a **periodic autosave (~every 10 s)** plus a final save on stop, so an abrupt process kill loses at most the last interval. The archive (button with the archive icon) lists the entries with date, time and duration (minutes:seconds); for each entry you can review the full text, share it as plain text, or delete it (with confirmation).
+- **Rotation**: a live session and the selected tab survive configuration changes; after a rotation the app stays on the Live tab.
+- **Version bump**: 1.1.0 -> 1.2.0 (versionCode 30).
+
 ### v1.1.0 (2026-10-17)
 - **Telephony WAV support (G.711 A-law/µ-law)**: shared audio files that are WAV recordings in telephone format — e.g. Iliad voicemail messages (`audio/wav`, 8 kHz mono, A-law) — are now decoded and transcribed. Decoding no longer relies on a platform codec for G.711 (which Android does not guarantee): a built-in, Android-free RIFF/WAVE decoder reads linear PCM (8/16/24/32-bit), IEEE float, A-law and µ-law directly, downmixes to mono and resamples to 16 kHz. MP3/M4A/AAC and PCM WAV keep using the existing platform path, unchanged.
 - **Robustness**: a share that carries no readable audio now always ends in a localized error instead of staying stuck on "initializing"; decoding failures can no longer terminate the worker thread.

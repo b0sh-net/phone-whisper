@@ -81,4 +81,24 @@
     <string name="status_local_model_error">Errore del modello locale</string>
     <string name="error_local_model_not_ready">Modello locale non pronto. Controlla che un modello sia stato scaricato nelle impostazioni dell\'app.</string>
     <string name="status_finished">Finito</string>
+
+    <!-- Live transcription -->
+    <string name="bottom_nav_live">Live</string>
+    <string name="live_title">Trascrizione in tempo reale</string>
+    <string name="live_start">Avvia</string>
+    <string name="live_stop">Ferma</string>
+    <string name="live_recording">Registrazione…</string>
+    <string name="live_requires_streaming_model">La trascrizione in tempo reale richiede un modello che supporta lo streaming. Seleziona un modello streaming (es. Kroko).</string>
+    <string name="live_archive">Archivio</string>
+    <string name="live_archive_title">Trascrizioni salvate</string>
+    <string name="live_archive_empty">Nessuna trascrizione salvata.</string>
+    <string name="live_action_review">Rivedi</string>
+    <string name="live_action_share">Condividi</string>
+    <string name="live_action_delete">Elimina</string>
+    <string name="live_delete_title">Elimina trascrizione</string>
+    <string name="live_delete_message">Eliminare questa trascrizione? L\'operazione non può essere annullata.</string>
+    <string name="live_error_permission_denied">Il permesso al microfono è necessario per la trascrizione in tempo reale.</string>
+    <string name="live_error_mic_busy">Microfono non disponibile. Chiudi le altre app che lo usano e riprova.</string>
+    <string name="live_error_generic">Trascrizione in tempo reale non riuscita. Riprova.</string>
+    <string name="live_error_no_streaming_model">Nessun modello streaming disponibile. Seleziona un modello streaming per la trascrizione in tempo reale.</string>
 </resources>

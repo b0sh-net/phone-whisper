@@ -23,6 +23,7 @@ data class Model(
     val dirName: String = "",
     val archive: String? = null,
     val files: List<ModelFile> = emptyList(),
+    val streaming: Boolean = false,
 )
 
 const val SHERPA_MODELS_SOURCE =
@@ -74,6 +75,7 @@ val MODEL_CATALOG = listOf(
         qualityRes = R.string.quality_best_lang,
         dirName = "kroko-128l-it",
         files = krokoFiles("it"),
+        streaming = true,
     ),
     Model(
         id = "kroko-128l-de",
@@ -83,6 +85,7 @@ val MODEL_CATALOG = listOf(
         qualityRes = R.string.quality_best_lang,
         dirName = "kroko-128l-de",
         files = krokoFiles("de"),
+        streaming = true,
     ),
     Model(
         id = "kroko-128l-en",
@@ -92,6 +95,7 @@ val MODEL_CATALOG = listOf(
         qualityRes = R.string.quality_best_lang,
         dirName = "kroko-128l-en",
         files = krokoFiles("en"),
+        streaming = true,
     ),
     Model(
         id = "kroko-128l-es",
@@ -101,6 +105,7 @@ val MODEL_CATALOG = listOf(
         qualityRes = R.string.quality_best_lang,
         dirName = "kroko-128l-es",
         files = krokoFiles("es"),
+        streaming = true,
     ),
     Model(
         id = "kroko-128l-fr",
@@ -110,6 +115,7 @@ val MODEL_CATALOG = listOf(
         qualityRes = R.string.quality_best_lang,
         dirName = "kroko-128l-fr",
         files = krokoFiles("fr"),
+        streaming = true,
     ),
     Model(
         id = "kroko-128l-pt",
@@ -119,6 +125,7 @@ val MODEL_CATALOG = listOf(
         qualityRes = R.string.quality_best_lang,
         dirName = "kroko-128l-pt",
         files = krokoFiles("pt"),
+        streaming = true,
     ),
     Model(
         id = "kroko-128l-tr",
@@ -128,6 +135,7 @@ val MODEL_CATALOG = listOf(
         qualityRes = R.string.quality_best_lang,
         dirName = "kroko-128l-tr",
         files = krokoFiles("tr"),
+        streaming = true,
     ),
 )
 

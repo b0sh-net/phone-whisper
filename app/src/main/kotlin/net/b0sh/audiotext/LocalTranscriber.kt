@@ -82,12 +82,71 @@ class LocalTranscriber private constructor(
         return result.text.trim()
     }
 
+    /**
+     * Create a live (incremental) session over the streaming recognizer.
+     * Returns null when this instance is not a streaming (online) model.
+     */
+    fun newLiveSession(): LiveSession? =
+        streamingRecognizer?.let { OnlineLiveSession(it) }
+
+    /**
+     * Incremental ASR session for live transcription (contract C3). The caller
+     * feeds mono 16 kHz samples and reads the growing hypothesis via [text].
+     */
+    interface LiveSession {
+        /** Feed a block of mono 16 kHz samples in [-1,1]; returns the current text. */
+        fun accept(samples: FloatArray): String
+
+        /** Current full hypothesis (may revise the last words). */
+        val text: String
+
+        /** Signal end of input, drain to EOS, and return the final text. */
+        fun finish(): String
+
+        /** Release the ASR stream. */
+        fun close()
+    }
+
+    private class OnlineLiveSession(
+        private val recognizer: OnlineRecognizer,
+    ) : LiveSession {
+        private val stream = recognizer.createStream()
+        private var latest = ""
+
+        override val text: String get() = latest
+
+        override fun accept(samples: FloatArray): String {
+            stream.acceptWaveform(samples, LIVE_SAMPLE_RATE)
+            while (recognizer.isReady(stream)) {
+                recognizer.decode(stream)
+            }
+            latest = recognizer.getResult(stream).text
+            return latest
+        }
+
+        override fun finish(): String {
+            stream.inputFinished()
+            while (recognizer.isReady(stream)) {
+                recognizer.decode(stream)
+            }
+            latest = recognizer.getResult(stream).text
+            return latest
+        }
+
+        override fun close() {
+            stream.release()
+        }
+    }
+
     companion object {
         private const val TAG = "LocalTranscriber"
 
         /** Seconds of trailing silence appended before end-of-input, so the
          *  streaming model can flush the last words (see transcribeStreaming). */
         private const val TRAILING_SILENCE_SECONDS = 2.0f
+
+        /** Sample rate for live microphone input (matches the model's expected input). */
+        private const val LIVE_SAMPLE_RATE = 16000
 
         /** Find available model dirs under the app's files/models/ dir */
         fun availableModels(ctx: Context): List<String> {
