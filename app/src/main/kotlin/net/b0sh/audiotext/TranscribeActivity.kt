@@ -53,16 +53,18 @@ class TranscribeActivity : AppCompatActivity() {
     )
 
     private fun handleIntent(intent: Intent?) {
-        if (intent?.action == Intent.ACTION_SEND && intent.type?.startsWith("audio/") == true) {
-            intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let { uri ->
-                startTranscription(uri)
-            }
-        } else if (intent?.action == Intent.ACTION_SEND_MULTIPLE && intent.type?.startsWith("audio/") == true) {
-            // Take the first one for now
-            intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.firstOrNull()?.let { uri ->
-                startTranscription(uri)
-            }
+        val uri: Uri? = when {
+            intent?.action == Intent.ACTION_SEND && intent.type?.startsWith("audio/") == true ->
+                intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            intent?.action == Intent.ACTION_SEND_MULTIPLE && intent.type?.startsWith("audio/") == true ->
+                // Take the first one for now
+                intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.firstOrNull()
+            else -> null
+        }
+        if (uri != null) {
+            startTranscription(uri)
         } else {
+            // Nessun audio valido: stato finalizzato con errore localizzato (mai attesa indefinita).
             uiState = TranscriptUiState(
                 statusText = string(R.string.error_no_audio_received),
                 resultText = string(R.string.error_share_audio),
@@ -79,7 +81,11 @@ class TranscribeActivity : AppCompatActivity() {
         )
 
         thread {
-            val samples = AudioDecoder.decodeToPcm(this, uri)
+            val samples = try {
+                AudioDecoder.decodeToPcm(this, uri)
+            } catch (e: Exception) {
+                null
+            }
             if (samples == null) {
                 uiState = TranscriptUiState(
                     statusText = string(R.string.status_decoding_failed),
@@ -98,12 +104,25 @@ class TranscribeActivity : AppCompatActivity() {
             val transcriber = TranscriberManager.getOrCreateTranscriber(this)
 
             if (transcriber != null) {
-                val text = transcriber.transcribe(samples)
-                uiState = TranscriptUiState(
-                    statusText = string(R.string.status_finished),
-                    resultText = text,
-                    showProgress = false,
-                )
+                // Qualunque errore del motore non deve lasciare la schermata in attesa.
+                val text = try {
+                    transcriber.transcribe(samples)
+                } catch (e: Exception) {
+                    null
+                }
+                if (text != null) {
+                    uiState = TranscriptUiState(
+                        statusText = string(R.string.status_finished),
+                        resultText = text,
+                        showProgress = false,
+                    )
+                } else {
+                    uiState = TranscriptUiState(
+                        statusText = string(R.string.status_local_model_error),
+                        resultText = string(R.string.error_local_model_not_ready),
+                        showProgress = false,
+                    )
+                }
             } else {
                 uiState = TranscriptUiState(
                     statusText = string(R.string.status_local_model_error),

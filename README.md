@@ -14,6 +14,11 @@ It supports:
 
 ## Changelog
 
+### v1.1.0 (2026-10-17)
+- **Telephony WAV support (G.711 A-law/µ-law)**: shared audio files that are WAV recordings in telephone format — e.g. Iliad voicemail messages (`audio/wav`, 8 kHz mono, A-law) — are now decoded and transcribed. Decoding no longer relies on a platform codec for G.711 (which Android does not guarantee): a built-in, Android-free RIFF/WAVE decoder reads linear PCM (8/16/24/32-bit), IEEE float, A-law and µ-law directly, downmixes to mono and resamples to 16 kHz. MP3/M4A/AAC and PCM WAV keep using the existing platform path, unchanged.
+- **Robustness**: a share that carries no readable audio now always ends in a localized error instead of staying stuck on "initializing"; decoding failures can no longer terminate the worker thread.
+- **Version bump**: 1.0.5 -> 1.1.0 (versionCode 29).
+
 ### v1.0.5 (2026-09-27)
 - **Release signing: R8 code shrinking and obfuscation enabled**: the `release` build type now uses R8 for bytecode minification (`isMinifyEnabled = true`) with a dedicated `proguard-rules.pro` file that preserves JNI, sherpa-onnx classes, Kotlin/Compose, OkHttp and Apache Commons Compress.
 - **Version bump**: 1.0.4 -> 1.0.5 (versionCode 28).

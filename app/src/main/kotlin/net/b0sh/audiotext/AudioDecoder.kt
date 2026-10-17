@@ -10,13 +10,72 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * Decodes audio from a Uri to 16kHz Mono FloatArray (PCM) using MediaCodec.
+ * Decodifica audio da una `Uri` a 16 kHz mono (PCM float).
+ *
+ * Percorso principale: se il contenuto è un WAV (firma `RIFF`/`WAVE`) viene
+ * decodificato direttamente con [WavDecoder] — include i WAV telefonici
+ * **G.711 A-law/µ-law** usati dai messaggi della segreteria, per i quali non
+ * esiste un decoder di piattaforma garantito.
+ *
+ * Fallback: per tutti gli altri contenitori (MP3, M4A/AAC, …) resta il percorso
+ * `MediaExtractor` + `MediaCodec` esistente. Nessuna eccezione sfugge: in caso
+ * di fallimento la funzione restituisce `null`.
  */
 object AudioDecoder {
     private const val TAG = "AudioDecoder"
     private const val TARGET_SAMPLE_RATE = 16000
 
     fun decodeToPcm(context: Context, uri: Uri): FloatArray? {
+        // 1) WAV diretto (PCM/float/G.711): sniff dei primi byte, poi decodifica pura.
+        val head = readHead(context, uri)
+        if (head != null && WavDecoder.isWav(head)) {
+            val bytes = readAll(context, uri)
+            if (bytes != null && WavDecoder.isWav(bytes)) {
+                val decoded = try {
+                    WavDecoder.decode(bytes)
+                } catch (e: Exception) {
+                    Log.e(TAG, "WavDecoder failed: ${e.message}")
+                    null
+                }
+                if (decoded != null) {
+                    return WavDecoder.resampleTo16k(decoded.samples, decoded.sampleRate)
+                }
+            }
+        }
+
+        // 2) Fallback MediaCodec per gli altri formati.
+        return try {
+            decodeWithMediaCodec(context, uri)
+        } catch (e: Exception) {
+            Log.e(TAG, "MediaCodec decode failed: ${e.message}")
+            null
+        }
+    }
+
+    /** Legge i primi [count] byte del contenuto (per lo sniff del formato). */
+    private fun readHead(context: Context, uri: Uri): ByteArray? = try {
+        context.contentResolver.openInputStream(uri)?.use { ins ->
+            val buf = ByteArray(12)
+            var off = 0
+            while (off < buf.size) {
+                val r = ins.read(buf, off, buf.size - off)
+                if (r < 0) break
+                off += r
+            }
+            if (off < 4) null else buf.copyOf(off)
+        }
+    } catch (e: Exception) {
+        null
+    }
+
+    private fun readAll(context: Context, uri: Uri): ByteArray? = try {
+        context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+    } catch (e: Exception) {
+        Log.e(TAG, "Failed to read uri: ${e.message}")
+        null
+    }
+
+    private fun decodeWithMediaCodec(context: Context, uri: Uri): FloatArray? {
         val extractor = MediaExtractor()
         try {
             extractor.setDataSource(context, uri, null)
@@ -28,19 +87,28 @@ object AudioDecoder {
         val trackIndex = selectAudioTrack(extractor)
         if (trackIndex < 0) {
             Log.e(TAG, "No audio track found")
+            extractor.release()
             return null
         }
 
         extractor.selectTrack(trackIndex)
         val format = extractor.getTrackFormat(trackIndex)
-        val mime = format.getString(MediaFormat.KEY_MIME) ?: return null
-        
-        // We want to force the output to 16kHz Mono
-        val codec = MediaCodec.createDecoderByType(mime)
-        val targetFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_RAW, TARGET_SAMPLE_RATE, 1)
-        
-        // Some decoders might not support direct resampling via configure, 
-        // but we'll try to get what we can and resample manually if needed.
+        val mime = format.getString(MediaFormat.KEY_MIME)
+        if (mime == null) {
+            extractor.release()
+            return null
+        }
+
+        // Un decoder assente per il MIME del track (es. formati opzionali) NON deve
+        // propagare l'eccezione: si degrada a null.
+        val codec = try {
+            MediaCodec.createDecoderByType(mime)
+        } catch (e: Exception) {
+            Log.e(TAG, "No decoder available for $mime: ${e.message}")
+            extractor.release()
+            return null
+        }
+
         codec.configure(format, null, null, 0)
         codec.start()
 
@@ -53,13 +121,10 @@ object AudioDecoder {
         val inputBuffers = codec.inputBuffers
         val outputBuffers = codec.outputBuffers
 
-        // Il loop prosegue finché il decoder non segnala EOS anche in OUTPUT.
-        // È essenziale: quando si accoda l'EOS in input possono restare in coda
-        // output non ancora prodotti (in particolare l'ultimo chunk di audio reale).
-        // Fermarsi all'EOS di input e chiamare subito codec.stop() scarterebbe
-        // quegli output -> l'audio finale (e le ultime parole) andrebbe perso.
+        // Il loop prosegue finché il decoder non segnala EOS anche in OUTPUT:
+        // quando si accoda l'EOS in input possono restare output in coda (l'ultimo
+        // chunk di audio reale); fermarsi prima scarterebbe l'audio finale.
         while (!outputDone) {
-            // Alimenta il decoder finché non è stato accodato l'EOS di input.
             if (!inputDone) {
                 val inIndex = codec.dequeueInputBuffer(10000)
                 if (inIndex >= 0) {
@@ -81,7 +146,6 @@ object AudioDecoder {
                 val chunk = ShortArray(info.size / 2)
                 buffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(chunk)
 
-                // Basic mono conversion if needed (if output was stereo)
                 if (channels == 2) {
                     for (i in 0 until chunk.size / 2) {
                         pcmData.add(chunk[i * 2])
@@ -100,17 +164,9 @@ object AudioDecoder {
         codec.release()
         extractor.release()
 
-        // Convert ShortArray to FloatArray (-1.0 to 1.0)
-        // Note: This logic assumes 16kHz was achieved. 
-        // If not, we should technically resample here.
         val inputRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-        val samples = if (inputRate != TARGET_SAMPLE_RATE) {
-            resample(pcmData.toShortArray(), inputRate, TARGET_SAMPLE_RATE)
-        } else {
-            FloatArray(pcmData.size) { pcmData[it].toFloat() / 32768f }
-        }
-
-        return samples
+        val floats = FloatArray(pcmData.size) { pcmData[it] / 32768f }
+        return WavDecoder.resampleTo16k(floats, inputRate)
     }
 
     private fun selectAudioTrack(extractor: MediaExtractor): Int {
@@ -120,25 +176,5 @@ object AudioDecoder {
             if (mime.startsWith("audio/")) return i
         }
         return -1
-    }
-
-    private fun resample(input: ShortArray, fromRate: Int, toRate: Int): FloatArray {
-        // Very basic linear interpolation for resampling
-        val ratio = fromRate.toDouble() / toRate.toDouble()
-        val outSize = (input.size / ratio).toInt()
-        val output = FloatArray(outSize)
-        for (i in 0 until outSize) {
-            val pos = i * ratio
-            val index = pos.toInt()
-            val frac = pos - index
-            if (index + 1 < input.size) {
-                val s1 = input[index].toFloat() / 32768f
-                val s2 = input[index + 1].toFloat() / 32768f
-                output[i] = s1 + frac.toFloat() * (s2 - s1)
-            } else if (index < input.size) {
-                output[i] = input[index].toFloat() / 32768f
-            }
-        }
-        return output
     }
 }
