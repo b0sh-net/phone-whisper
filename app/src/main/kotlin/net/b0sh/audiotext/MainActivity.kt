@@ -160,11 +160,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
-        // End the live session on a real background transition, but not on a
-        // configuration change (rotation), which the process singleton survives.
-        if (!isChangingConfigurations) {
-            LiveTranscriptionController.onAppBackgrounded(this)
-        }
+        // The live session deliberately keeps running when the app is no longer
+        // visible (screen locked, app switched, Home): a `microphone` foreground
+        // service keeps capturing. Only an explicit stop or an error ends it.
+        LiveTranscriptionController.onHostStopped(this)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -176,6 +175,9 @@ class MainActivity : AppCompatActivity() {
 
     /** Start the live session, requesting the microphone permission when needed. */
     private fun onLiveStart() {
+        // Only the microphone permission is required: the ongoing notice is mandatory
+        // for the foreground service but the session must not depend on the user
+        // granting POST_NOTIFICATIONS (it keeps running with the notice hidden).
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             LiveTranscriptionController.start(this)
         } else {

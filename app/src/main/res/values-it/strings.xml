@@ -101,4 +101,8 @@
     <string name="live_error_mic_busy">Microfono non disponibile. Chiudi le altre app che lo usano e riprova.</string>
     <string name="live_error_generic">Trascrizione in tempo reale non riuscita. Riprova.</string>
     <string name="live_error_no_streaming_model">Nessun modello streaming disponibile. Seleziona un modello streaming per la trascrizione in tempo reale.</string>
+    <string name="live_notification_channel">Trascrizione in tempo reale</string>
+    <string name="live_notification_title">Trascrizione in tempo reale</string>
+    <string name="live_notification_text">Trascrizione in corso in background — tocca per tornare all\'app</string>
+    <string name="live_notification_stop">Ferma</string>
 </resources>

@@ -12,16 +12,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlin.concurrent.thread
 
-/** Phase of the live transcription session. */
-enum class LivePhase { Idle, Recording, Error }
-
 /**
  * Process-wide controller for live (microphone) transcription.
  *
  * Being a process singleton (like [TranscriberManager]/`ModelDownloadRepository`),
  * the active session survives configuration changes (FR-023): rotating the device
- * does not interrupt capture or lose text. It is stopped (and, in US2, persisted)
- * when the app truly goes to the background, which [onAppBackgrounded] handles.
+ * does not interrupt capture or lose text. It keeps running when the app goes to
+ * the background — a `microphone` foreground service keeps the capture alive (and
+ * un-muted) while the screen is locked — and stops only on an explicit user stop
+ * or one of the documented error conditions.
  *
  * Capture uses [AudioRecord] at 16 kHz mono PCM16 (VoiceRecognition source) on a
  * dedicated thread, feeding the existing streaming recognizer via
@@ -59,9 +58,13 @@ object LiveTranscriptionController {
 
     private val repoLock = Any()
 
-    /** Id of the archive row for the current session (0 until first autosave/final save). */
+    /**
+     * Archive row owner of the current session (null until the session starts).
+     * One instance per session: periodic autosave and the final stop always write
+     * the same row, even when the session spans background/screen-locked phases.
+     */
     @Volatile
-    private var sessionId = 0L
+    private var archive: LiveSessionArchive? = null
 
     /** Override the archive repository (used by tests). */
     fun setRepository(repo: TranscriptRepository?) {
@@ -83,16 +86,10 @@ object LiveTranscriptionController {
      * so one session maps to exactly one row (FR-009). Empty text is never saved.
      */
     private fun persistProgress(ctx: Context, durationMillis: Long) {
-        val text = currentText
-        if (!shouldArchive(text)) return
+        val session = archive ?: return
         runCatching {
             synchronized(repoLock) {
-                val repository = repo(ctx)
-                if (sessionId == 0L) {
-                    sessionId = repository.add(createdAtMillis, durationMillis, text)
-                } else {
-                    repository.update(sessionId, durationMillis, text)
-                }
+                session.save(durationMillis, currentText)
             }
         }.onFailure { Log.e(TAG, "Failed to persist transcript", it) }
     }
@@ -141,6 +138,19 @@ object LiveTranscriptionController {
             return
         }
 
+        // Keep the process alive and the microphone un-muted while the screen is
+        // locked: without a `microphone` foreground service Android 14+ silences
+        // background capture. Started here, while the activity is still visible,
+        // because the platform forbids creating it from the background (FR-001).
+        try {
+            LiveSessionService.start(ctx)
+        } catch (e: Exception) {
+            Log.e(TAG, "Live foreground service start failed", e)
+            session.close()
+            setError(R.string.live_error_generic)
+            return
+        }
+
         val record = try {
             AudioRecord(
                 MediaRecorder.AudioSource.VOICE_RECOGNITION,
@@ -160,6 +170,7 @@ object LiveTranscriptionController {
             } catch (_: Exception) {
             }
             session.close()
+            LiveSessionService.stop(ctx)
             setError(R.string.live_error_mic_busy)
             return
         }
@@ -170,7 +181,7 @@ object LiveTranscriptionController {
         createdAtMillis = System.currentTimeMillis()
         startedAtElapsed = SystemClock.elapsedRealtime()
         stopRequested = false
-        sessionId = 0L
+        archive = LiveSessionArchive(repo(ctx), createdAtMillis)
         phase = LivePhase.Recording
 
         try {
@@ -179,6 +190,7 @@ object LiveTranscriptionController {
             Log.e(TAG, "startRecording failed", e)
             releaseAudio()
             session.close()
+            LiveSessionService.stop(ctx)
             setError(R.string.live_error_mic_busy)
             return
         }
@@ -211,6 +223,8 @@ object LiveTranscriptionController {
                     persistProgress(ctx, SystemClock.elapsedRealtime() - startedAtElapsed)
                     setError(R.string.live_error_generic)
                 }
+                // Never leave an orphan foreground service / notification behind.
+                LiveSessionService.stop(ctx)
             } finally {
                 try {
                     session.close()
@@ -235,11 +249,21 @@ object LiveTranscriptionController {
         persistProgress(ctx, durationMillis)
 
         phase = LivePhase.Idle
+        // Session over: drop the foreground service and its notification. Phase is
+        // already Idle, so the service's onDestroy safety net is a no-op.
+        LiveSessionService.stop(ctx)
     }
 
-    /** Called from `MainActivity.onStop` on a real background transition (not a config change). */
-    fun onAppBackgrounded(ctx: Context) {
-        if (phase == LivePhase.Recording) {
+    /**
+     * Called from `MainActivity.onStop`, i.e. whenever the host activity is no
+     * longer visible: screen locked, app switched, Home pressed.
+     *
+     * The session MUST keep running in all those cases; it ends only on an
+     * explicit user stop or on one of the documented error conditions
+     * (FR-001/FR-002/FR-003).
+     */
+    fun onHostStopped(ctx: Context) {
+        if (stopsOnHostBackground(phase)) {
             stop(ctx)
         }
     }
