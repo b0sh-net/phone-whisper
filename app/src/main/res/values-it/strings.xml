@@ -104,4 +104,7 @@
     <string name="live_interrupted_background">La trascrizione in tempo reale si è fermata perché l\'app non era più visibile. Il testo è stato salvato nell\'archivio.</string>
     <string name="live_interrupted_dismiss">Chiudi</string>
     <string name="live_nav_blocked">Ferma la trascrizione per cambiare sezione.</string>
+    <!-- Etichette di accessibilità del badge di capacità Live nelle righe modello. -->
+    <string name="live_badge_supported">Supporta la trascrizione in tempo reale</string>
+    <string name="live_badge_unsupported">Non supporta la trascrizione in tempo reale</string>
 </resources>

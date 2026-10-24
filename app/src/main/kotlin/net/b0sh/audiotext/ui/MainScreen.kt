@@ -41,6 +41,7 @@ data class InstalledModelRow(
     val sizeText: String,
     val sizeMb: Int,
     val isActive: Boolean,
+    val supportsLive: Boolean,
 )
 
 /** Stato UI della schermata principale, derivato direttamente in MainActivity. */
@@ -135,11 +136,18 @@ fun MainScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(row.name, fontSize = 18.sp)
-                        Text(
-                            row.sizeText,
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                row.sizeText,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            LiveBadgeIcon(
+                                supportsLive = row.supportsLive,
+                                modifier = Modifier.padding(start = 4.dp),
+                            )
+                        }
                     }
                     TextButton(
                         onClick = { pendingDelete = row },

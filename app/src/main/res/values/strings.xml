@@ -104,4 +104,7 @@
     <string name="live_interrupted_background">Live transcription stopped because the app was no longer visible. The transcript has been saved to the archive.</string>
     <string name="live_interrupted_dismiss">Dismiss</string>
     <string name="live_nav_blocked">Stop the transcription to switch section.</string>
+    <!-- Accessibility labels of the Live capability badge on model rows. -->
+    <string name="live_badge_supported">Supports live transcription</string>
+    <string name="live_badge_unsupported">Does not support live transcription</string>
 </resources>

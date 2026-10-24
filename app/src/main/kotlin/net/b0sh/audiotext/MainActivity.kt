@@ -445,6 +445,7 @@ class MainActivity : AppCompatActivity() {
                     sizeText = string(R.string.model_size_mb, string(it.qualityRes), it.sizeMb),
                     sizeMb = it.sizeMb,
                     isActive = it.id == activeModel,
+                    supportsLive = it.streaming,
                 )
             }
         infoText = if (MODEL_CATALOG.any { ModelDownloader.isInstalled(this, it) })
@@ -461,6 +462,7 @@ class MainActivity : AppCompatActivity() {
                     id = it.id,
                     name = it.name,
                     sizeText = string(R.string.model_size_mb, string(it.qualityRes), it.sizeMb),
+                    supportsLive = it.streaming,
                 )
             }
     }

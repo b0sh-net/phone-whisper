@@ -32,6 +32,7 @@ data class CatalogModelRow(
     val id: String,
     val name: String,
     val sizeText: String,
+    val supportsLive: Boolean,
 )
 
 /** Fase di download di una singola card. */
@@ -126,11 +127,18 @@ private fun ModelCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(row.name, fontSize = 18.sp)
-                    Text(
-                        phaseText(row.sizeText, phase),
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            phaseText(row.sizeText, phase),
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        LiveBadgeIcon(
+                            supportsLive = row.supportsLive,
+                            modifier = Modifier.padding(start = 4.dp),
+                        )
+                    }
                 }
                 TextButton(
                     enabled = phase == DownloadPhase.Idle,

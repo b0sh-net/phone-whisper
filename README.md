@@ -20,6 +20,7 @@ It supports:
 - **Navigation locked while recording**: while a session is active the other sections (Home, Catalog, More info) cannot be opened — tapping another item or pressing Back shows a short message, and the only way out is **Stop**.
 - **Interruption notice**: when a session ended because the app was no longer visible, a non-blocking, dismissible notice appears on return; it never covers the text and it does not come back after the app is closed.
 - **Archive**: an interrupted session still corresponds to a **single** entry with the overall duration and the whole text; periodic autosave keeps running until the stop.
+- **Live capability shown on every model**: the Catalog and the Home list now show whether a model can be used for live transcription, with a microphone icon (supported) or a struck-through microphone (not supported) right after the quality and size line. The icon is sized to the secondary text, uses the same color, adds no height to the row and carries a localized accessibility label; it is non-interactive and is derived from the same flag that enables the Live tab, so the two can never disagree.
 - **Version bump**: 1.2.0 -> 1.2.1 (versionCode 31).
 
 ### v1.2.0 (2026-10-17)
