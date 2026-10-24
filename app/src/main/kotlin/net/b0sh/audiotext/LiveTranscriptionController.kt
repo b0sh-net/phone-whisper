@@ -17,10 +17,10 @@ import kotlin.concurrent.thread
  *
  * Being a process singleton (like [TranscriberManager]/`ModelDownloadRepository`),
  * the active session survives configuration changes (FR-023): rotating the device
- * does not interrupt capture or lose text. It keeps running when the app goes to
- * the background — a `microphone` foreground service keeps the capture alive (and
- * un-muted) while the screen is locked — and stops only on an explicit user stop
- * or one of the documented error conditions.
+ * does not interrupt capture or lose text. The microphone is used **only while the
+ * Live screen is visible**: locking the screen, pressing Home or switching app ends
+ * the session, saves the transcript and shows a non-blocking notice on return
+ * (FR-004/FR-005/FR-007).
  *
  * Capture uses [AudioRecord] at 16 kHz mono PCM16 (VoiceRecognition source) on a
  * dedicated thread, feeding the existing streaming recognizer via
@@ -39,6 +39,14 @@ object LiveTranscriptionController {
     var currentText by mutableStateOf("")
         private set
     var errorMessageRes by mutableStateOf<Int?>(null)
+        private set
+
+    /**
+     * Localized explanation shown on return after the session was interrupted
+     * because the app was no longer visible (FR-007). Lives in memory only: it
+     * survives moving between sections but not closing and reopening the app.
+     */
+    var interruptionNoticeRes by mutableStateOf<Int?>(null)
         private set
 
     /** The archive button is usable only when no session is running (FR-010). */
@@ -138,19 +146,6 @@ object LiveTranscriptionController {
             return
         }
 
-        // Keep the process alive and the microphone un-muted while the screen is
-        // locked: without a `microphone` foreground service Android 14+ silences
-        // background capture. Started here, while the activity is still visible,
-        // because the platform forbids creating it from the background (FR-001).
-        try {
-            LiveSessionService.start(ctx)
-        } catch (e: Exception) {
-            Log.e(TAG, "Live foreground service start failed", e)
-            session.close()
-            setError(R.string.live_error_generic)
-            return
-        }
-
         val record = try {
             AudioRecord(
                 MediaRecorder.AudioSource.VOICE_RECOGNITION,
@@ -170,13 +165,13 @@ object LiveTranscriptionController {
             } catch (_: Exception) {
             }
             session.close()
-            LiveSessionService.stop(ctx)
             setError(R.string.live_error_mic_busy)
             return
         }
 
         currentText = ""
         errorMessageRes = null
+        interruptionNoticeRes = null
         audioRecord = record
         createdAtMillis = System.currentTimeMillis()
         startedAtElapsed = SystemClock.elapsedRealtime()
@@ -190,7 +185,6 @@ object LiveTranscriptionController {
             Log.e(TAG, "startRecording failed", e)
             releaseAudio()
             session.close()
-            LiveSessionService.stop(ctx)
             setError(R.string.live_error_mic_busy)
             return
         }
@@ -223,8 +217,6 @@ object LiveTranscriptionController {
                     persistProgress(ctx, SystemClock.elapsedRealtime() - startedAtElapsed)
                     setError(R.string.live_error_generic)
                 }
-                // Never leave an orphan foreground service / notification behind.
-                LiveSessionService.stop(ctx)
             } finally {
                 try {
                     session.close()
@@ -234,9 +226,15 @@ object LiveTranscriptionController {
         }
     }
 
-    /** Stop the session, releasing the microphone. Idempotent. */
+    /**
+     * Stop the session, releasing the microphone. Idempotent.
+     *
+     * [cause] only decides whether the user gets the interruption notice when they
+     * come back: the session ends because they pressed stop, because the app was no
+     * longer visible, or because of an error (FR-006/FR-007).
+     */
     @Synchronized
-    fun stop(ctx: Context) {
+    fun stop(ctx: Context, cause: StopCause = StopCause.User) {
         if (phase != LivePhase.Recording) return
         val durationMillis = SystemClock.elapsedRealtime() - startedAtElapsed
         stopRequested = true
@@ -249,27 +247,34 @@ object LiveTranscriptionController {
         persistProgress(ctx, durationMillis)
 
         phase = LivePhase.Idle
-        // Session over: drop the foreground service and its notification. Phase is
-        // already Idle, so the service's onDestroy safety net is a no-op.
-        LiveSessionService.stop(ctx)
+        interruptionNoticeRes =
+            if (interruptionNoticeShown(cause)) R.string.live_interrupted_background else null
+    }
+
+    /** Discard the interruption notice without starting a new session (FR-007). */
+    fun dismissInterruption() {
+        interruptionNoticeRes = null
     }
 
     /**
      * Called from `MainActivity.onStop`, i.e. whenever the host activity is no
      * longer visible: screen locked, app switched, Home pressed.
      *
-     * The session MUST keep running in all those cases; it ends only on an
-     * explicit user stop or on one of the documented error conditions
-     * (FR-001/FR-002/FR-003).
+     * In all those cases the session ends: the microphone is never used outside the
+     * visible app (FR-004/FR-005). A configuration change also reaches `onStop` but
+     * must not interrupt the transcription (FR-011).
      */
-    fun onHostStopped(ctx: Context) {
-        if (stopsOnHostBackground(phase)) {
-            stop(ctx)
+    fun onHostStopped(ctx: Context, isChangingConfigurations: Boolean) {
+        if (stopsOnHostStopped(phase, isChangingConfigurations)) {
+            stop(ctx, StopCause.HostNotVisible)
         }
     }
 
     fun setError(@StringRes resId: Int) {
         errorMessageRes = resId
+        // Un errore ha già il suo messaggio localizzato: l'avviso di interruzione
+        // precedente non deve convivere con esso (FR-007).
+        interruptionNoticeRes = null
         phase = LivePhase.Error
     }
 

@@ -101,8 +101,7 @@
     <string name="live_error_mic_busy">Microphone unavailable. Close other apps using it and try again.</string>
     <string name="live_error_generic">Live transcription failed. Please try again.</string>
     <string name="live_error_no_streaming_model">No streaming model available. Select a streaming model to transcribe live.</string>
-    <string name="live_notification_channel">Live transcription</string>
-    <string name="live_notification_title">Live transcription</string>
-    <string name="live_notification_text">Transcribing in the background — tap to return to the app</string>
-    <string name="live_notification_stop">Stop</string>
+    <string name="live_interrupted_background">Live transcription stopped because the app was no longer visible. The transcript has been saved to the archive.</string>
+    <string name="live_interrupted_dismiss">Dismiss</string>
+    <string name="live_nav_blocked">Stop the transcription to switch section.</string>
 </resources>

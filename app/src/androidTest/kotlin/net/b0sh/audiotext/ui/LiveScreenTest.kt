@@ -11,6 +11,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import net.b0sh.audiotext.LivePhase
 import net.b0sh.audiotext.R
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -33,6 +34,8 @@ class LiveScreenTest {
         phase: LivePhase,
         currentText: String = "",
         archiveAvailable: Boolean = true,
+        interruptionNoticeRes: Int? = null,
+        onDismissInterruption: () -> Unit = {},
         onOpenArchive: () -> Unit = {},
     ) {
         composeRule.setContent {
@@ -41,8 +44,10 @@ class LiveScreenTest {
                 currentText = currentText,
                 archiveAvailable = archiveAvailable,
                 errorMessageRes = null,
+                interruptionNoticeRes = interruptionNoticeRes,
                 onStart = {},
                 onStop = {},
+                onDismissInterruption = onDismissInterruption,
                 onOpenArchive = onOpenArchive,
             )
         }
@@ -86,5 +91,30 @@ class LiveScreenTest {
         render(LivePhase.Idle, archiveAvailable = true, onOpenArchive = { clicked = true })
         composeRule.onNodeWithText(str(R.string.live_archive)).assertIsEnabled().performClick()
         assertTrue(clicked)
+    }
+
+    @Test
+    fun showsInterruptionNoticeWithoutBlockingStart() {
+        render(LivePhase.Idle, interruptionNoticeRes = R.string.live_interrupted_background)
+        composeRule.onNodeWithText(str(R.string.live_interrupted_background)).assertExists()
+        composeRule.onNodeWithText(str(R.string.live_start)).assertIsEnabled()
+    }
+
+    @Test
+    fun hidesInterruptionNoticeWhenNoInterruptionHappened() {
+        render(LivePhase.Idle)
+        composeRule.onNodeWithText(str(R.string.live_interrupted_background)).assertDoesNotExist()
+    }
+
+    @Test
+    fun dismissInterruptionInvokesCallbackOncePerClick() {
+        var dismissed = 0
+        render(
+            LivePhase.Idle,
+            interruptionNoticeRes = R.string.live_interrupted_background,
+            onDismissInterruption = { dismissed++ },
+        )
+        composeRule.onNodeWithText(str(R.string.live_interrupted_dismiss)).performClick()
+        assertEquals(1, dismissed)
     }
 }

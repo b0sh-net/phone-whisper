@@ -38,6 +38,10 @@ import net.b0sh.audiotext.R
  * It takes all data and callbacks as parameters (no direct coupling to
  * [net.b0sh.audiotext.LiveTranscriptionController]) so it can be exercised
  * deterministically by Compose UI tests.
+ *
+ * When [interruptionNoticeRes] is not null the screen shows a non-blocking notice
+ * explaining that the session ended because the app was no longer visible: it never
+ * hides the text, never blocks the start button and can be dismissed (FR-007).
  */
 @Composable
 fun LiveScreen(
@@ -45,8 +49,10 @@ fun LiveScreen(
     currentText: String,
     archiveAvailable: Boolean,
     @StringRes errorMessageRes: Int?,
+    @StringRes interruptionNoticeRes: Int?,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    onDismissInterruption: () -> Unit,
     onOpenArchive: () -> Unit,
 ) {
     val recording = phase == LivePhase.Recording
@@ -94,6 +100,32 @@ fun LiveScreen(
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 12.dp),
             )
+        }
+
+        // Interruption notice (localized, dismissal only — FR-007). It is not an
+        // error: informational tone, and the start button stays usable.
+        if (interruptionNoticeRes != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 8.dp, end = 8.dp, top = 12.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = RoundedCornerShape(12.dp),
+                    )
+                    .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(interruptionNoticeRes),
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onDismissInterruption) {
+                    Text(text = stringResource(R.string.live_interrupted_dismiss))
+                }
+            }
         }
 
         // Scrollable transcript box

@@ -14,6 +14,14 @@ It supports:
 
 ## Changelog
 
+### v1.2.1 (2026-10-24)
+- **Live transcription: screen stays on**: while a live session runs the device no longer goes to standby on its own. The screen stays awake until the user presses **Stop** — no extra permission involved — and the normal screen timeout applies again as soon as the session ends.
+- **Session tied to the visible app**: the microphone is used only while the Live screen is visible. Locking the screen, pressing Home or switching to another app ends the session and saves the text produced up to that moment. The `microphone` foreground service and the persistent notice with the **Stop** action have been removed; the notification channel of the previous version is cleaned up on update.
+- **Navigation locked while recording**: while a session is active the other sections (Home, Catalog, More info) cannot be opened — tapping another item or pressing Back shows a short message, and the only way out is **Stop**.
+- **Interruption notice**: when a session ended because the app was no longer visible, a non-blocking, dismissible notice appears on return; it never covers the text and it does not come back after the app is closed.
+- **Archive**: an interrupted session still corresponds to a **single** entry with the overall duration and the whole text; periodic autosave keeps running until the stop.
+- **Version bump**: 1.2.0 -> 1.2.1 (versionCode 31).
+
 ### v1.2.0 (2026-10-17)
 - **Live transcription**: a new **Live** tab (between Catalog and Info, microphone icon) transcribes the device microphone in real time using a streaming model. Start opens the microphone and shows the text as it is spoken in a scrollable box; the button becomes Stop. The tab is enabled only when the selected model supports streaming (e.g. Kroko).
 - **Local archive**: every live session that produces text is saved automatically to a local SQLite database, with a **periodic autosave (~every 10 s)** plus a final save on stop, so an abrupt process kill loses at most the last interval. The archive (button with the archive icon) lists the entries with date, time and duration (minutes:seconds); for each entry you can review the full text, share it as plain text, or delete it (with confirmation).

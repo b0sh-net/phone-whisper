@@ -1,6 +1,7 @@
 package net.b0sh.audiotext
 
 import android.Manifest
+import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -21,13 +22,19 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.lifecycleScope
@@ -103,6 +110,11 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Il canale di notifica della trascrizione in background non esiste più: va
+        // eliminato anche sulle installazioni aggiornate, dove sopravvivrebbe come
+        // residuo nelle impostazioni dell'app (FR-010).
+        removeLegacyLiveChannel()
+
         // Ripristino dopo un cambio di configurazione (rotazione): la scheda
         // attiva e la sotto-schermata archivio non devono andare perse. Alla
         // prima apertura, senza un modello installato si parte dal catalogo.
@@ -160,10 +172,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
-        // The live session deliberately keeps running when the app is no longer
-        // visible (screen locked, app switched, Home): a `microphone` foreground
-        // service keeps capturing. Only an explicit stop or an error ends it.
-        LiveTranscriptionController.onHostStopped(this)
+        // Il microfono si usa solo mentre la schermata Live è visibile: bloccare lo
+        // schermo o lasciare l'app chiude la sessione e salva il testo (FR-004/FR-005).
+        // Una rotazione arriva qui come cambio di configurazione e non interrompe nulla.
+        LiveTranscriptionController.onHostStopped(this, isChangingConfigurations)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -208,32 +220,60 @@ class MainActivity : AppCompatActivity() {
 
     @Composable
     private fun MainScaffold() {
+        // Lo schermo resta acceso esattamente mentre la sessione Live registra: il
+        // dispositivo non va in standby durante la trascrizione e torna al timeout
+        // normale appena la sessione finisce (FR-001/FR-002). Nessun permesso
+        // richiesto: il flag vale solo per la finestra dell'app.
+        val keepScreenOn = screenOnState(LiveTranscriptionController.phase) == ScreenOnState.KeptOn
+        val hostView = LocalView.current
+        DisposableEffect(keepScreenOn) {
+            hostView.keepScreenOn = keepScreenOn
+            onDispose { hostView.keepScreenOn = false }
+        }
+
+        // Mentre la sessione registra la navigazione è bloccata (FR-008): il tocco su
+        // un'altra sezione e il Back mostrano un messaggio non bloccante.
+        val navLocked = navigationLocked(LiveTranscriptionController.phase)
+        val snackbarHostState = remember { SnackbarHostState() }
+        val scope = rememberCoroutineScope()
+        val navBlockedMessage = stringResource(R.string.live_nav_blocked)
+        val showNavBlocked: () -> Unit = {
+            scope.launch {
+                snackbarHostState.currentSnackbarData?.dismiss()
+                snackbarHostState.showSnackbar(navBlockedMessage)
+            }
+        }
+
         // Il tasto Back dall'archivio torna alla Live; dalle altre schede torna alla Home.
-        BackHandler(enabled = currentTab != Tab.Home) {
-            if (currentTab == Tab.Live && showArchive) {
-                showArchive = false
-            } else {
-                currentTab = Tab.Home
+        // Durante la registrazione non cambia schermata: l'unica uscita è lo stop.
+        BackHandler(enabled = currentTab != Tab.Home || navLocked) {
+            when {
+                navLocked -> showNavBlocked()
+                currentTab == Tab.Live && showArchive -> showArchive = false
+                else -> currentTab = Tab.Home
             }
         }
 
         Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             bottomBar = {
                 NavigationBar {
                     Tab.entries.forEach { tab ->
                         val selected = currentTab == tab
                         val liveLocked = tab == Tab.Live && !liveEnabled
+                        val blockedByRecording = navLocked && tab != Tab.Live
+                        val dimmed = liveLocked || blockedByRecording
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
-                                if (liveLocked) {
-                                    Toast.makeText(
+                                when {
+                                    blockedByRecording -> showNavBlocked()
+                                    liveLocked -> Toast.makeText(
                                         this@MainActivity,
                                         getString(R.string.live_requires_streaming_model),
                                         Toast.LENGTH_LONG,
                                     ).show()
-                                } else {
-                                    currentTab = tab
+                                    else -> currentTab = tab
                                 }
                             },
                             icon = {
@@ -243,7 +283,7 @@ class MainActivity : AppCompatActivity() {
                                 )
                             },
                             label = { Text(stringResource(tab.labelRes)) },
-                            colors = if (liveLocked) {
+                            colors = if (dimmed) {
                                 NavigationBarItemDefaults.colors(
                                     selectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
                                     selectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
@@ -302,8 +342,10 @@ class MainActivity : AppCompatActivity() {
                             currentText = LiveTranscriptionController.currentText,
                             archiveAvailable = LiveTranscriptionController.archiveAvailable,
                             errorMessageRes = LiveTranscriptionController.errorMessageRes,
+                            interruptionNoticeRes = LiveTranscriptionController.interruptionNoticeRes,
                             onStart = ::onLiveStart,
                             onStop = { LiveTranscriptionController.stop(this@MainActivity) },
+                            onDismissInterruption = LiveTranscriptionController::dismissInterruption,
                             onOpenArchive = ::openArchive,
                         )
                     }
@@ -469,8 +511,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun prefs() = getSharedPreferences("audiotext", MODE_PRIVATE)
 
+    /** Remove, once, the notification channel of the former background session (FR-010). */
+    private fun removeLegacyLiveChannel() {
+        val prefs = prefs()
+        if (prefs.getBoolean(LEGACY_CHANNEL_FLAG, false)) return
+        getSystemService(NotificationManager::class.java)
+            ?.deleteNotificationChannel(LEGACY_LIVE_CHANNEL_ID)
+        prefs.edit().putBoolean(LEGACY_CHANNEL_FLAG, true).apply()
+    }
+
     companion object {
         private const val STATE_TAB = "live_state_tab"
         private const val STATE_ARCHIVE = "live_state_archive"
+        private const val LEGACY_LIVE_CHANNEL_ID = "live_transcription"
+        private const val LEGACY_CHANNEL_FLAG = "legacy_live_channel_removed"
     }
 }
