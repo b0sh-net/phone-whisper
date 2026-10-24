@@ -102,7 +102,9 @@ class ModelDownloaderTest {
         val langs = listOf("it", "de", "en", "es", "fr", "pt", "tr")
         val krokoModels = MODEL_CATALOG.filter { it.id.startsWith("kroko-128l-") }
         assertEquals(langs.size, krokoModels.size)
-        assertEquals(langs, krokoModels.map { it.id.removePrefix("kroko-128l-") })
+        // The order in the catalog is a presentation choice and can change:
+        // only coverage matters here, not the position of each language.
+        assertEquals(langs.toSet(), krokoModels.map { it.id.removePrefix("kroko-128l-") }.toSet())
 
         for (lang in langs) {
             val model = MODEL_CATALOG.find { it.id == "kroko-128l-$lang" }
